@@ -18,7 +18,7 @@ enum LaunchAtLoginService {
             }
         } catch {
             FileHandle.standardError.write(
-                Data("LiveWallpaper: failed to set launch at login: \(error)\n".utf8)
+                Data("Driftwall: failed to set launch at login: \(error)\n".utf8)
             )
         }
     }

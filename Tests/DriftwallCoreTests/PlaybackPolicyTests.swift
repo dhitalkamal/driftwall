@@ -1,4 +1,4 @@
-import LiveWallpaperCore
+import DriftwallCore
 
 // all-clear conditions: a video is selected and nothing suggests we should pause.
 private func clearConditions() -> PlaybackConditions {

@@ -26,7 +26,7 @@ final class StatusMenuController: NSObject {
         if let button = statusItem.button {
             button.image = NSImage(
                 systemSymbolName: "menubar.dock.rectangle",
-                accessibilityDescription: "Live Wallpaper"
+                accessibilityDescription: "Driftwall"
             )
         }
 
@@ -51,7 +51,7 @@ final class StatusMenuController: NSObject {
         menu.addItem(.separator())
 
         let quit = NSMenuItem(
-            title: "Quit Live Wallpaper", action: #selector(quit), keyEquivalent: "q"
+            title: "Quit Driftwall", action: #selector(quit), keyEquivalent: "q"
         )
         quit.target = self
         menu.addItem(quit)

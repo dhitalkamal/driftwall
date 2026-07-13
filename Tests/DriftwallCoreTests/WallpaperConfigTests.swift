@@ -1,5 +1,5 @@
 import Foundation
-import LiveWallpaperCore
+import DriftwallCore
 
 func runWallpaperConfigTests(_ t: TestRunner) {
     // a fresh config has no video and pauses on battery.

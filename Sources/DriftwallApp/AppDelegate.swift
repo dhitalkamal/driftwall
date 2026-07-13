@@ -1,5 +1,5 @@
 import AppKit
-import LiveWallpaperCore
+import DriftwallCore
 
 // wires the infrastructure adapters to the core controller and keeps the environment
 // signals fed to the controller in sync with power and occlusion changes.

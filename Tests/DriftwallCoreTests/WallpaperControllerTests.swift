@@ -1,5 +1,5 @@
 import Foundation
-import LiveWallpaperCore
+import DriftwallCore
 
 // records what the controller asks the wallpaper surface to do.
 @MainActor

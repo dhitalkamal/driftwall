@@ -1,5 +1,5 @@
 import AppKit
-import LiveWallpaperCore
+import DriftwallCore
 
 // implements the WallpaperRendering port with AppKit: one borderless desktop-level window per
 // screen, all bound to a single looping player. rebuilds windows when the display arrangement

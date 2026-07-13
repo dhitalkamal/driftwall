@@ -1,5 +1,5 @@
 import Foundation
-import LiveWallpaperCore
+import DriftwallCore
 
 // persists WallpaperConfig as json under Application Support. a missing or unreadable file
 // yields the default config; write failures are reported to stderr rather than swallowed.
@@ -10,7 +10,7 @@ final class FileConfigStore: ConfigStoring {
     init() {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent("Library/Application Support")
-        let directory = base.appendingPathComponent("LiveWallpaper", isDirectory: true)
+        let directory = base.appendingPathComponent("Driftwall", isDirectory: true)
         fileURL = directory.appendingPathComponent("config.json")
     }
 
@@ -22,7 +22,7 @@ final class FileConfigStore: ConfigStoring {
             let data = try Data(contentsOf: fileURL)
             return try JSONDecoder().decode(WallpaperConfig.self, from: data)
         } catch {
-            FileHandle.standardError.write(Data("LiveWallpaper: failed to load config: \(error)\n".utf8))
+            FileHandle.standardError.write(Data("Driftwall: failed to load config: \(error)\n".utf8))
             return WallpaperConfig()
         }
     }
@@ -36,7 +36,7 @@ final class FileConfigStore: ConfigStoring {
             let data = try encoder.encode(config)
             try data.write(to: fileURL, options: .atomic)
         } catch {
-            FileHandle.standardError.write(Data("LiveWallpaper: failed to save config: \(error)\n".utf8))
+            FileHandle.standardError.write(Data("Driftwall: failed to save config: \(error)\n".utf8))
         }
     }
 }
