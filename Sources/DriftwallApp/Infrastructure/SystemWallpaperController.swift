@@ -5,11 +5,16 @@ import DriftwallCore
 // trivial static image (no animated wallpaper burning power) behind our video, and restores
 // the user's picture afterwards. uses only public NSWorkspace APIs.
 //
-// limitation: if a display currently shows a native video wallpaper, macOS hands back only a
-// static representation to restore. static and dynamic .heic wallpapers restore exactly.
+// safety: the captured originals are also written to disk, so if the app crashes or is
+// force-killed (applicationWillTerminate would not run) the next launch recovers the user's
+// wallpaper via recoverIfNeeded(). the app's own blackout image and nil captures are never
+// recorded as an "original", so an abnormal exit can never make blackout the saved wallpaper.
+//
+// limitations: NSWorkspace reads and writes only the active Space's picture, so takeover and
+// restore apply per Space (documented in README). a display whose current wallpaper macOS
+// cannot express as a URL is left untouched rather than blacked out.
 @MainActor
 final class SystemWallpaperController: SystemWallpaperControlling {
-    // remembered desktop image url per display, captured at takeover.
     private var saved: [CGDirectDisplayID: URL] = [:]
     private var blackoutURL: URL?
 
@@ -18,10 +23,18 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         for screen in NSScreen.screens {
             guard let id = displayID(for: screen) else { continue }
             if saved[id] == nil {
-                saved[id] = NSWorkspace.shared.desktopImageURL(for: screen)
+                // desktopImageURL is nullable and may return our own blackout (e.g. left by a
+                // crash). in either case do not take over this display: we would have no valid
+                // original to restore.
+                guard let current = NSWorkspace.shared.desktopImageURL(for: screen),
+                      current.standardizedFileURL != blackout.standardizedFileURL else {
+                    continue
+                }
+                saved[id] = current
             }
             setDesktopImage(blackout, for: screen)
         }
+        persistSaved()
     }
 
     func restore() {
@@ -30,6 +43,20 @@ final class SystemWallpaperController: SystemWallpaperControlling {
             setDesktopImage(original, for: screen)
         }
         saved.removeAll()
+        deletePersistedSaved()
+    }
+
+    // called once at launch, before any takeover. if a persisted map exists, the previous run
+    // did not restore (crash / force quit), so put the user's wallpaper back.
+    func recoverIfNeeded() {
+        let persisted = loadPersistedSaved()
+        guard !persisted.isEmpty else { return }
+        for screen in NSScreen.screens {
+            guard let id = displayID(for: screen), let original = persisted[id] else { continue }
+            setDesktopImage(original, for: screen)
+        }
+        saved.removeAll()
+        deletePersistedSaved()
     }
 
     private func setDesktopImage(_ url: URL, for screen: NSScreen) {
@@ -47,13 +74,62 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         return (screen.deviceDescription[key] as? NSNumber)?.uint32Value
     }
 
+    // MARK: - persistence
+
+    private var supportDirectory: URL? {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
+        return base?.appendingPathComponent("Driftwall", isDirectory: true)
+    }
+
+    private var savedFileURL: URL? {
+        supportDirectory?.appendingPathComponent("saved_wallpapers.json")
+    }
+
+    private func persistSaved() {
+        guard let url = savedFileURL, let directory = supportDirectory else { return }
+        let payload = Dictionary(uniqueKeysWithValues: saved.map { (String($0.key), $0.value.absoluteString) })
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let data = try JSONEncoder().encode(payload)
+            try data.write(to: url, options: .atomic)
+        } catch {
+            FileHandle.standardError.write(
+                Data("Driftwall: failed to persist saved wallpapers: \(error)\n".utf8)
+            )
+        }
+    }
+
+    private func loadPersistedSaved() -> [CGDirectDisplayID: URL] {
+        guard let url = savedFileURL, FileManager.default.fileExists(atPath: url.path) else { return [:] }
+        do {
+            let data = try Data(contentsOf: url)
+            let payload = try JSONDecoder().decode([String: String].self, from: data)
+            var result: [CGDirectDisplayID: URL] = [:]
+            for (key, value) in payload {
+                if let id = CGDirectDisplayID(key), let original = URL(string: value) {
+                    result[id] = original
+                }
+            }
+            return result
+        } catch {
+            FileHandle.standardError.write(
+                Data("Driftwall: failed to load saved wallpapers: \(error)\n".utf8)
+            )
+            return [:]
+        }
+    }
+
+    private func deletePersistedSaved() {
+        guard let url = savedFileURL else { return }
+        try? FileManager.default.removeItem(at: url)
+    }
+
     // create a small solid-black png once in application support and reuse it.
     private func ensureBlackoutImage() -> URL? {
         if let blackoutURL, FileManager.default.fileExists(atPath: blackoutURL.path) {
             return blackoutURL
         }
-        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-        guard let directory = base?.appendingPathComponent("Driftwall", isDirectory: true) else { return nil }
+        guard let directory = supportDirectory else { return nil }
         let url = directory.appendingPathComponent("blackout.png")
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

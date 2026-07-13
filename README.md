@@ -77,3 +77,8 @@ Hexagonal layering, imports flow inward only:
   technique. Sold direct (notarized), not through the App Store.
 - The desktop window level is an undocumented technique. Stable for years across many apps,
   but retest on each annual macOS release.
+- "Replace system wallpaper" acts per Space. macOS only lets an app read/write the active
+  Space's desktop picture, so if you use per-Space wallpapers, only Spaces you visit while
+  Driftwall runs are taken over and restored. The captured originals are saved to disk and
+  recovered on the next launch if the app crashes or is force-quit, so your wallpaper is not
+  lost; turn the setting off if you rely heavily on distinct per-Space wallpapers.

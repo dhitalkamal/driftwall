@@ -17,6 +17,8 @@ final class DesktopVideoWallpaper: WallpaperRendering {
 
     // invoked (on the main thread) whenever a window's occlusion state changes.
     var onOcclusionChange: (@MainActor () -> Void)?
+    // invoked (on the main thread) after the display arrangement changes and windows rebuild.
+    var onScreensChange: (@MainActor () -> Void)?
     // invoked (on the main thread) when the current video fails to load.
     var onLoadFailure: (@MainActor (String) -> Void)? {
         didSet { looper.onLoadFailure = onLoadFailure }
@@ -81,8 +83,10 @@ final class DesktopVideoWallpaper: WallpaperRendering {
 
     func setShowOnAllSpaces(_ enabled: Bool) {
         currentShowOnAllSpaces = enabled
-        for window in windows {
-            window.setShowOnAllSpaces(enabled)
+        // rebuild so windows are re-created with the new collection behavior and re-ordered;
+        // mutating collectionBehavior on an already-ordered window does not reliably re-apply.
+        if currentURL != nil {
+            rebuildWindows()
         }
     }
 
@@ -100,7 +104,10 @@ final class DesktopVideoWallpaper: WallpaperRendering {
     private func scheduleRebuild() {
         rebuildWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated { self?.rebuildWindows() }
+            MainActor.assumeIsolated {
+                self?.rebuildWindows()
+                self?.onScreensChange?()
+            }
         }
         rebuildWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)

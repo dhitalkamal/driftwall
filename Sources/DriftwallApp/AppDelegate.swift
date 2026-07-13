@@ -18,6 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // agent app: live in the menu bar, no dock icon or main window.
         NSApp.setActivationPolicy(.accessory)
 
+        // if a previous run crashed or was force-killed while it had taken over the desktop
+        // picture, put the user's wallpaper back before we do anything else.
+        systemWallpaper.recoverIfNeeded()
+
         let controller = WallpaperController(
             store: store, renderer: wallpaper, systemWallpaper: systemWallpaper)
         self.controller = controller
@@ -48,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         power.onChange = { [weak self] in self?.syncEnvironment() }
         wallpaper.onOcclusionChange = { [weak self] in self?.syncEnvironment() }
+        wallpaper.onScreensChange = { [weak self] in self?.controller?.handleScreensChanged() }
         power.start()
 
         controller.start(environment: currentEnvironment())

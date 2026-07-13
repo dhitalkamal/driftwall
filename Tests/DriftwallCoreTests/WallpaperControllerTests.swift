@@ -10,14 +10,15 @@ private final class FakeRenderer: WallpaperRendering {
     var volume: Double?
     var dim: Double?
     var showOnAllSpaces: Bool?
-    func show(video url: URL) { shownVideos.append(url) }
+    var events: [String] = []
+    func show(video url: URL) { shownVideos.append(url); events.append("show") }
     func play() { commands.append("play") }
     func pause() { commands.append("pause") }
-    func hide() { commands.append("hide") }
+    func hide() { commands.append("hide"); events.append("hide") }
     func setFitMode(_ mode: FitMode) { fitMode = mode }
     func setVolume(_ volume: Double) { self.volume = volume }
     func setDim(_ dim: Double) { self.dim = dim }
-    func setShowOnAllSpaces(_ enabled: Bool) { showOnAllSpaces = enabled }
+    func setShowOnAllSpaces(_ enabled: Bool) { showOnAllSpaces = enabled; events.append("spaces:\(enabled)") }
     var lastCommand: String? { commands.last }
 }
 
@@ -199,5 +200,42 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         controller.restoreSystemWallpaper()
         controller.restoreSystemWallpaper()
         t.expectEqual(system.restoreCount, 1)
+    }
+
+    // a screen change re-runs takeover so a hot-plugged display gets covered (takeOver is
+    // additive), but only while active with the setting on.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: true))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        t.expectEqual(system.takeOverCount, 1)
+        controller.handleScreensChanged()
+        t.expectEqual(system.takeOverCount, 2)
+    }
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: false))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        controller.handleScreensChanged()
+        t.expectEqual(system.takeOverCount, 0)
+    }
+
+    // on start, the renderer is told the all-spaces setting before the video is shown, so
+    // windows are created with the correct collection behavior.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, showOnAllSpaces: false))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        let spacesIndex = renderer.events.firstIndex(of: "spaces:false")
+        let showIndex = renderer.events.firstIndex(of: "show")
+        t.expect(spacesIndex != nil && showIndex != nil, "both events should fire")
+        if let s = spacesIndex, let sh = showIndex {
+            t.expect(s < sh, "show-on-all-spaces should be set before show")
+        }
     }
 }

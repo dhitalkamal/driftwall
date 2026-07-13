@@ -118,6 +118,15 @@ public final class WallpaperController {
         applyPlayback()
     }
 
+    // the display arrangement changed (monitor plugged/unplugged). re-run takeover so any
+    // newly attached display is also covered; takeOver is additive/idempotent per display.
+    public func handleScreensChanged() {
+        if isShowing && config.replaceSystemWallpaper {
+            systemWallpaper.takeOver()
+            didTakeOverSystemWallpaper = true
+        }
+    }
+
     // show the resolved video (or tear down if none) and re-apply appearance settings.
     private func refreshSurface() {
         let url = WallpaperResolver.video(
@@ -128,8 +137,9 @@ public final class WallpaperController {
             playlistAdvance: 0
         )
         if let url {
-            renderer.show(video: url)
+            // set window behavior before showing so windows are created on the right Spaces.
             renderer.setShowOnAllSpaces(config.showOnAllSpaces)
+            renderer.show(video: url)
             renderer.setFitMode(config.fitMode)
             renderer.setVolume(config.playbackSettings.volume)
             renderer.setDim(config.playbackSettings.dim)
