@@ -5,16 +5,13 @@ import Foundation
 public struct WallpaperConfig: Codable, Equatable, Sendable {
     public var selectedVideo: URL?
     public var pauseOnBattery: Bool
-    public var launchAtLogin: Bool
 
     public init(
         selectedVideo: URL? = nil,
-        pauseOnBattery: Bool = true,
-        launchAtLogin: Bool = false
+        pauseOnBattery: Bool = true
     ) {
         self.selectedVideo = selectedVideo
         self.pauseOnBattery = pauseOnBattery
-        self.launchAtLogin = launchAtLogin
     }
 
     public var hasVideo: Bool {

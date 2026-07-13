@@ -2,18 +2,16 @@ import Foundation
 import LiveWallpaperCore
 
 func runWallpaperConfigTests(_ t: TestRunner) {
-    // a fresh config has no video, pauses on battery, and does not launch at login.
+    // a fresh config has no video and pauses on battery.
     let defaults = WallpaperConfig()
     t.expectEqual(defaults.selectedVideo, nil)
     t.expectEqual(defaults.pauseOnBattery, true)
-    t.expectEqual(defaults.launchAtLogin, false)
     t.expectEqual(defaults.hasVideo, false)
 
     // hasVideo reflects whether a video url is set.
     let withVideo = WallpaperConfig(
         selectedVideo: URL(fileURLWithPath: "/tmp/loop.mp4"),
-        pauseOnBattery: false,
-        launchAtLogin: true
+        pauseOnBattery: false
     )
     t.expectEqual(withVideo.hasVideo, true)
 
