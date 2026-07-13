@@ -35,6 +35,10 @@ public protocol ConfigStoring: AnyObject {
 // nothing behind us) and restores it afterwards. the adapter uses NSWorkspace.
 @MainActor
 public protocol SystemWallpaperControlling: AnyObject {
+    // tell the controller which video is active so it can use a still frame of that video as
+    // the desktop stand-in (seamless Space transitions) instead of solid black. pass nil when
+    // no video is shown.
+    func setStandIn(forVideo url: URL?)
     func takeOver()
     func restore()
 }
@@ -44,6 +48,7 @@ public protocol SystemWallpaperControlling: AnyObject {
 @MainActor
 public final class NoopSystemWallpaper: SystemWallpaperControlling {
     public init() {}
+    public func setStandIn(forVideo url: URL?) {}
     public func takeOver() {}
     public func restore() {}
 }

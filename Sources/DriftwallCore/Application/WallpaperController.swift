@@ -148,6 +148,8 @@ public final class WallpaperController {
             renderer.hide()
             isShowing = false
         }
+        // let the system-wallpaper stand-in match the current video before taking over.
+        systemWallpaper.setStandIn(forVideo: isShowing ? url : nil)
         syncSystemWallpaper()
     }
 

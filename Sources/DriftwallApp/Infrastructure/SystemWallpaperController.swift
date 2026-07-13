@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import DriftwallCore
 
 // takes over the macOS desktop picture while Driftwall is active so the system renders a
@@ -17,24 +18,62 @@ import DriftwallCore
 final class SystemWallpaperController: SystemWallpaperControlling {
     private var saved: [CGDirectDisplayID: URL] = [:]
     private var blackoutURL: URL?
+    // a still frame of the current video, used as the desktop stand-in so a Space switch shows
+    // the video's frame instead of solid black. falls back to blackout until it is ready.
+    private var standInURL: URL?
+    private var posterVideoURL: URL?
+
+    // the image to place behind our video: the video poster frame if ready, else solid black.
+    private func currentStandIn() -> URL? {
+        standInURL ?? ensureBlackoutImage()
+    }
+
+    func setStandIn(forVideo url: URL?) {
+        guard let url else {
+            standInURL = nil
+            posterVideoURL = nil
+            return
+        }
+        guard posterVideoURL != url else { return }
+        posterVideoURL = url
+        Task { [weak self] in
+            guard let self else { return }
+            let poster = await self.generatePoster(for: url)
+            // ignore if the selected video changed while the poster was generating.
+            guard self.posterVideoURL == url else { return }
+            self.standInURL = poster
+            // if we already took over with black, swap in the poster now that it is ready.
+            self.reapplyStandIn()
+        }
+    }
 
     func takeOver() {
-        guard let blackout = ensureBlackoutImage() else { return }
+        guard let standIn = currentStandIn() else { return }
         for screen in NSScreen.screens {
             guard let id = displayID(for: screen) else { continue }
             if saved[id] == nil {
-                // desktopImageURL is nullable and may return our own blackout (e.g. left by a
-                // crash). in either case do not take over this display: we would have no valid
-                // original to restore.
+                // desktopImageURL is nullable and may return one of our own stand-in images
+                // (e.g. left by a crash). in either case do not take over this display: we
+                // would have no valid original to restore.
                 guard let current = NSWorkspace.shared.desktopImageURL(for: screen),
-                      current.standardizedFileURL != blackout.standardizedFileURL else {
+                      !isOurImage(current) else {
                     continue
                 }
                 saved[id] = current
             }
-            setDesktopImage(blackout, for: screen)
+            setDesktopImage(standIn, for: screen)
         }
         persistSaved()
+    }
+
+    // re-apply the current stand-in to displays we have already taken over (used when the
+    // poster frame becomes available after an initial black takeover).
+    private func reapplyStandIn() {
+        guard !saved.isEmpty, let standIn = currentStandIn() else { return }
+        for screen in NSScreen.screens {
+            guard let id = displayID(for: screen), saved[id] != nil else { continue }
+            setDesktopImage(standIn, for: screen)
+        }
     }
 
     func restore() {
@@ -72,6 +111,35 @@ final class SystemWallpaperController: SystemWallpaperControlling {
     private func displayID(for screen: NSScreen) -> CGDirectDisplayID? {
         let key = NSDeviceDescriptionKey("NSScreenNumber")
         return (screen.deviceDescription[key] as? NSNumber)?.uint32Value
+    }
+
+    // true for images we generated (blackout / poster), which live in our support directory.
+    // never captured as a user "original".
+    private func isOurImage(_ url: URL) -> Bool {
+        guard let directory = supportDirectory else { return false }
+        return url.standardizedFileURL.path.hasPrefix(directory.standardizedFileURL.path)
+    }
+
+    // extract a still frame near the start of the video and write it as poster.png. runs the
+    // heavy decode off the main thread inside AVAssetImageGenerator; returns nil on failure.
+    private func generatePoster(for url: URL) async -> URL? {
+        guard let directory = supportDirectory else { return nil }
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        do {
+            let frame = try await generator.image(at: CMTime(seconds: 0.1, preferredTimescale: 600))
+            let rep = NSBitmapImageRep(cgImage: frame.image)
+            guard let png = rep.representation(using: .png, properties: [:]) else { return nil }
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            let posterURL = directory.appendingPathComponent("poster.png")
+            try png.write(to: posterURL, options: .atomic)
+            return posterURL
+        } catch {
+            FileHandle.standardError.write(
+                Data("Driftwall: failed to generate poster frame: \(error)\n".utf8)
+            )
+            return nil
+        }
     }
 
     // MARK: - persistence

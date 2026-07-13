@@ -35,6 +35,8 @@ private final class FakeStore: ConfigStoring {
 private final class FakeSystemWallpaper: SystemWallpaperControlling {
     var takeOverCount = 0
     var restoreCount = 0
+    var standInVideos: [URL?] = []
+    func setStandIn(forVideo url: URL?) { standInVideos.append(url) }
     func takeOver() { takeOverCount += 1 }
     func restore() { restoreCount += 1 }
 }
@@ -200,6 +202,23 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         controller.restoreSystemWallpaper()
         controller.restoreSystemWallpaper()
         t.expectEqual(system.restoreCount, 1)
+    }
+
+    // showing a video sets the system stand-in to that video (for a seamless frame instead of
+    // black); clearing the video sets the stand-in back to nil.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: true))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        t.expectEqual(system.standInVideos.last ?? nil, Optional(sampleVideo))
+        controller.clearVideo()
+        if case .some(let last) = system.standInVideos.last {
+            t.expect(last == nil, "clearing the video resets the stand-in to nil")
+        } else {
+            t.expect(false, "setStandIn should have been called on clear")
+        }
     }
 
     // a screen change re-runs takeover so a hot-plugged display gets covered (takeOver is
