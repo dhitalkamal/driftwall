@@ -96,8 +96,14 @@ private struct ProTab: View {
                 } else {
                     TextField("Paste your license key", text: $model.licenseKeyInput, axis: .vertical)
                         .lineLimit(2...4)
-                    Button("Activate") { model.activateLicense() }
-                        .disabled(model.licenseKeyInput.isEmpty)
+                        .textFieldStyle(.roundedBorder)
+                    HStack {
+                        Button("Paste from Clipboard") { model.pasteLicenseFromClipboard() }
+                        Spacer()
+                        Button("Activate") { model.activateLicense() }
+                            .keyboardShortcut(.defaultAction)
+                            .disabled(model.licenseKeyInput.isEmpty)
+                    }
                 }
                 if !model.licenseMessage.isEmpty {
                     Text(model.licenseMessage).font(.callout).foregroundStyle(.secondary)

@@ -90,6 +90,14 @@ final class PreferencesModel: ObservableObject {
         LaunchAtLoginService.setEnabled(enabled)
     }
 
+    // fill the license field directly from the clipboard, so paste works with one click even
+    // if a keyboard shortcut does not reach the field.
+    func pasteLicenseFromClipboard() {
+        if let text = NSPasteboard.general.string(forType: .string) {
+            licenseKeyInput = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
     func activateLicense() {
         let token = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !token.isEmpty else {

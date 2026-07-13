@@ -17,6 +17,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         // agent app: live in the menu bar, no dock icon or main window.
         NSApp.setActivationPolicy(.accessory)
+        // install a main menu so Cmd+V and other editing shortcuts work in text fields.
+        MainMenu.install()
 
         // if a previous run crashed or was force-killed while it had taken over the desktop
         // picture, put the user's wallpaper back before we do anything else.
