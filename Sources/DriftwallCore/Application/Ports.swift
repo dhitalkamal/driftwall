@@ -20,6 +20,8 @@ public protocol WallpaperRendering: AnyObject {
     func setVolume(_ volume: Double)
     // dim overlay strength, 0...1. 0 is no dim, 1 is fully black.
     func setDim(_ dim: Double)
+    // whether the wallpaper window joins every Space.
+    func setShowOnAllSpaces(_ enabled: Bool)
 }
 
 // loads and persists the user's wallpaper settings.

@@ -16,6 +16,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
     t.expectEqual(defaults.playbackSettings, PlaybackSettings())
     // by default we take over the system wallpaper so macOS animates nothing behind us.
     t.expectEqual(defaults.replaceSystemWallpaper, true)
+    // by default the wallpaper shows on every Space.
+    t.expectEqual(defaults.showOnAllSpaces, true)
 
     // a fully populated config round-trips through json for persistence.
     let full = WallpaperConfig(
@@ -31,7 +33,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
         playbackSettings: PlaybackSettings(volume: 0.4, dim: 0.2),
         pauseOnBattery: false,
         licenseToken: "signed.token.value",
-        replaceSystemWallpaper: false
+        replaceSystemWallpaper: false,
+        showOnAllSpaces: false
     )
     t.expectEqual(full.hasVideo, true)
     do {

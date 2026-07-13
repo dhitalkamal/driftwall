@@ -97,6 +97,13 @@ public final class WallpaperController {
         syncSystemWallpaper()
     }
 
+    // user toggled whether the wallpaper shows on every Space.
+    public func setShowOnAllSpaces(_ enabled: Bool) {
+        config.showOnAllSpaces = enabled
+        store.save(config)
+        renderer.setShowOnAllSpaces(enabled)
+    }
+
     // restore the macOS desktop picture. call on quit so the user's wallpaper comes back.
     public func restoreSystemWallpaper() {
         if didTakeOverSystemWallpaper {
@@ -122,6 +129,7 @@ public final class WallpaperController {
         )
         if let url {
             renderer.show(video: url)
+            renderer.setShowOnAllSpaces(config.showOnAllSpaces)
             renderer.setFitMode(config.fitMode)
             renderer.setVolume(config.playbackSettings.volume)
             renderer.setDim(config.playbackSettings.dim)

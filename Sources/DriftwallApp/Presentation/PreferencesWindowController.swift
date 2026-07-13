@@ -9,8 +9,9 @@ final class PreferencesWindowController: NSWindowController {
         let hosting = NSHostingController(rootView: PreferencesView(model: model))
         let window = NSWindow(contentViewController: hosting)
         window.title = "Driftwall"
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false
+        window.setContentSize(NSSize(width: 480, height: 460))
         self.init(window: window)
     }
 

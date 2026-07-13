@@ -11,6 +11,7 @@ final class DesktopVideoWallpaper: WallpaperRendering {
     private var currentURL: URL?
     private var currentFitMode: FitMode = .fill
     private var currentDim: Double = 0
+    private var currentShowOnAllSpaces = true
     private var rebuildWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
 
@@ -78,6 +79,13 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         }
     }
 
+    func setShowOnAllSpaces(_ enabled: Bool) {
+        currentShowOnAllSpaces = enabled
+        for window in windows {
+            window.setShowOnAllSpaces(enabled)
+        }
+    }
+
     func hide() {
         rebuildWork?.cancel()
         for window in windows {
@@ -104,7 +112,7 @@ final class DesktopVideoWallpaper: WallpaperRendering {
             window.orderOut(nil)
         }
         windows = NSScreen.screens.map { screen in
-            let window = WallpaperWindow(screen: screen)
+            let window = WallpaperWindow(screen: screen, showOnAllSpaces: currentShowOnAllSpaces)
             window.playerView.bind(to: looper.player)
             window.playerView.setFitMode(currentFitMode)
             window.playerView.setDim(currentDim)

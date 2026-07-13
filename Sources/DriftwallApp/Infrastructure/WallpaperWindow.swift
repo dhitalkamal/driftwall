@@ -57,7 +57,7 @@ extension FitMode {
 final class WallpaperWindow: NSWindow {
     let playerView = PlayerView()
 
-    init(screen: NSScreen) {
+    init(screen: NSScreen, showOnAllSpaces: Bool) {
         super.init(
             contentRect: screen.frame,
             styleMask: .borderless,
@@ -66,10 +66,7 @@ final class WallpaperWindow: NSWindow {
         )
         // desktopWindow level sits above the static desktop picture but below the icons.
         level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
-        // canJoinAllSpaces keeps it on every Space; stationary is mandatory because a
-        // non-normal window level otherwise defaults to transient and vanishes in Mission
-        // Control; ignoresCycle removes it from Cycle Through Windows.
-        collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
+        setShowOnAllSpaces(showOnAllSpaces)
         isOpaque = false
         backgroundColor = .clear
         hasShadow = false
@@ -78,5 +75,16 @@ final class WallpaperWindow: NSWindow {
         // a borderless window cannot be key/main, which is exactly what we want.
         contentView = playerView
         setFrame(screen.frame, display: true)
+    }
+
+    // stationary is mandatory: a non-normal window level otherwise defaults to transient and
+    // vanishes in Mission Control. ignoresCycle removes it from Cycle Through Windows.
+    // canJoinAllSpaces makes it appear on every Space when enabled.
+    func setShowOnAllSpaces(_ enabled: Bool) {
+        var behavior: NSWindow.CollectionBehavior = [.stationary, .ignoresCycle]
+        if enabled {
+            behavior.insert(.canJoinAllSpaces)
+        }
+        collectionBehavior = behavior
     }
 }

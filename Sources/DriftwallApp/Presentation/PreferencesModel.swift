@@ -14,6 +14,7 @@ final class PreferencesModel: ObservableObject {
     @Published var dim: Double
     @Published var pauseOnBattery: Bool
     @Published var replaceSystemWallpaper: Bool
+    @Published var showOnAllSpaces: Bool
     @Published var launchAtLogin: Bool
     @Published var tier: LicenseTier
     @Published var licenseKeyInput: String = ""
@@ -28,6 +29,7 @@ final class PreferencesModel: ObservableObject {
         dim = config.playbackSettings.dim
         pauseOnBattery = config.pauseOnBattery
         replaceSystemWallpaper = config.replaceSystemWallpaper
+        showOnAllSpaces = config.showOnAllSpaces
         launchAtLogin = LaunchAtLoginService.isEnabled
         tier = controller.tier
     }
@@ -78,6 +80,11 @@ final class PreferencesModel: ObservableObject {
         controller.setReplaceSystemWallpaper(enabled)
     }
 
+    func updateShowOnAllSpaces(_ enabled: Bool) {
+        showOnAllSpaces = enabled
+        controller.setShowOnAllSpaces(enabled)
+    }
+
     func updateLaunchAtLogin(_ enabled: Bool) {
         launchAtLogin = enabled
         LaunchAtLoginService.setEnabled(enabled)
@@ -95,6 +102,13 @@ final class PreferencesModel: ObservableObject {
         }
         controller.setLicense(token: token, tier: claims.tier)
         tier = claims.tier
+        licenseKeyInput = ""
         licenseMessage = "Activated. Thanks, \(claims.email)."
+    }
+
+    func deactivateLicense() {
+        controller.setLicense(token: nil, tier: .free)
+        tier = .free
+        licenseMessage = "Deactivated. Pro features are locked."
     }
 }

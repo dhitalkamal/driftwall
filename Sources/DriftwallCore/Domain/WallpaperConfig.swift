@@ -19,6 +19,9 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
     // when true, take over the macOS desktop picture while active so the system animates
     // nothing behind our video, restoring it on quit.
     public var replaceSystemWallpaper: Bool
+    // when true, the wallpaper window joins every Space; when false it stays on the Space it
+    // was created on.
+    public var showOnAllSpaces: Bool
 
     public init(
         selectedVideo: URL? = nil,
@@ -29,7 +32,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         playbackSettings: PlaybackSettings = PlaybackSettings(),
         pauseOnBattery: Bool = true,
         licenseToken: String? = nil,
-        replaceSystemWallpaper: Bool = true
+        replaceSystemWallpaper: Bool = true,
+        showOnAllSpaces: Bool = true
     ) {
         self.selectedVideo = selectedVideo
         self.perDisplayVideos = perDisplayVideos
@@ -40,6 +44,7 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         self.pauseOnBattery = pauseOnBattery
         self.licenseToken = licenseToken
         self.replaceSystemWallpaper = replaceSystemWallpaper
+        self.showOnAllSpaces = showOnAllSpaces
     }
 
     public init(from decoder: Decoder) throws {
@@ -53,7 +58,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
             playbackSettings: try c.decodeIfPresent(PlaybackSettings.self, forKey: .playbackSettings) ?? PlaybackSettings(),
             pauseOnBattery: try c.decodeIfPresent(Bool.self, forKey: .pauseOnBattery) ?? true,
             licenseToken: try c.decodeIfPresent(String.self, forKey: .licenseToken),
-            replaceSystemWallpaper: try c.decodeIfPresent(Bool.self, forKey: .replaceSystemWallpaper) ?? true
+            replaceSystemWallpaper: try c.decodeIfPresent(Bool.self, forKey: .replaceSystemWallpaper) ?? true,
+            showOnAllSpaces: try c.decodeIfPresent(Bool.self, forKey: .showOnAllSpaces) ?? true
         )
     }
 

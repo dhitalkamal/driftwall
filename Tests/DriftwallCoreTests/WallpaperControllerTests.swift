@@ -9,6 +9,7 @@ private final class FakeRenderer: WallpaperRendering {
     var fitMode: FitMode?
     var volume: Double?
     var dim: Double?
+    var showOnAllSpaces: Bool?
     func show(video url: URL) { shownVideos.append(url) }
     func play() { commands.append("play") }
     func pause() { commands.append("pause") }
@@ -16,6 +17,7 @@ private final class FakeRenderer: WallpaperRendering {
     func setFitMode(_ mode: FitMode) { fitMode = mode }
     func setVolume(_ volume: Double) { self.volume = volume }
     func setDim(_ dim: Double) { self.dim = dim }
+    func setShowOnAllSpaces(_ enabled: Bool) { showOnAllSpaces = enabled }
     var lastCommand: String? { commands.last }
 }
 
@@ -173,6 +175,18 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(system.restoreCount, 1)
         controller.setReplaceSystemWallpaper(true)
         t.expectEqual(system.takeOverCount, 2)
+    }
+
+    // showing a video pushes the show-on-all-spaces setting; toggling it persists and pushes.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, showOnAllSpaces: true))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        t.expectEqual(renderer.showOnAllSpaces, true)
+        controller.setShowOnAllSpaces(false)
+        t.expectEqual(renderer.showOnAllSpaces, false)
+        t.expectEqual(store.stored.showOnAllSpaces, false)
     }
 
     // restoreSystemWallpaper (called on quit) restores once and is idempotent.
