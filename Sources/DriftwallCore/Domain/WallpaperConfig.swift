@@ -16,6 +16,9 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
     public var pauseOnBattery: Bool
     // the raw signed license token, verified in the app layer to derive the tier.
     public var licenseToken: String?
+    // when true, take over the macOS desktop picture while active so the system animates
+    // nothing behind our video, restoring it on quit.
+    public var replaceSystemWallpaper: Bool
 
     public init(
         selectedVideo: URL? = nil,
@@ -25,7 +28,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         playlistEnabled: Bool = false,
         playbackSettings: PlaybackSettings = PlaybackSettings(),
         pauseOnBattery: Bool = true,
-        licenseToken: String? = nil
+        licenseToken: String? = nil,
+        replaceSystemWallpaper: Bool = true
     ) {
         self.selectedVideo = selectedVideo
         self.perDisplayVideos = perDisplayVideos
@@ -35,6 +39,7 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         self.playbackSettings = playbackSettings
         self.pauseOnBattery = pauseOnBattery
         self.licenseToken = licenseToken
+        self.replaceSystemWallpaper = replaceSystemWallpaper
     }
 
     public init(from decoder: Decoder) throws {
@@ -47,7 +52,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
             playlistEnabled: try c.decodeIfPresent(Bool.self, forKey: .playlistEnabled) ?? false,
             playbackSettings: try c.decodeIfPresent(PlaybackSettings.self, forKey: .playbackSettings) ?? PlaybackSettings(),
             pauseOnBattery: try c.decodeIfPresent(Bool.self, forKey: .pauseOnBattery) ?? true,
-            licenseToken: try c.decodeIfPresent(String.self, forKey: .licenseToken)
+            licenseToken: try c.decodeIfPresent(String.self, forKey: .licenseToken),
+            replaceSystemWallpaper: try c.decodeIfPresent(Bool.self, forKey: .replaceSystemWallpaper) ?? true
         )
     }
 

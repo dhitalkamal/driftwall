@@ -13,6 +13,7 @@ final class PreferencesModel: ObservableObject {
     @Published var volume: Double
     @Published var dim: Double
     @Published var pauseOnBattery: Bool
+    @Published var replaceSystemWallpaper: Bool
     @Published var launchAtLogin: Bool
     @Published var tier: LicenseTier
     @Published var licenseKeyInput: String = ""
@@ -26,6 +27,7 @@ final class PreferencesModel: ObservableObject {
         volume = config.playbackSettings.volume
         dim = config.playbackSettings.dim
         pauseOnBattery = config.pauseOnBattery
+        replaceSystemWallpaper = config.replaceSystemWallpaper
         launchAtLogin = LaunchAtLoginService.isEnabled
         tier = controller.tier
     }
@@ -69,6 +71,11 @@ final class PreferencesModel: ObservableObject {
     func updatePauseOnBattery(_ enabled: Bool) {
         pauseOnBattery = enabled
         controller.setPauseOnBattery(enabled)
+    }
+
+    func updateReplaceSystemWallpaper(_ enabled: Bool) {
+        replaceSystemWallpaper = enabled
+        controller.setReplaceSystemWallpaper(enabled)
     }
 
     func updateLaunchAtLogin(_ enabled: Bool) {

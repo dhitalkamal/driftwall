@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let power = PowerMonitor()
     private let wallpaper = DesktopVideoWallpaper()
     private let store = FileConfigStore()
+    private let systemWallpaper = SystemWallpaperController()
     private let menu = StatusMenuController()
     private var controller: WallpaperController?
     private var preferences: PreferencesWindowController?
@@ -17,7 +18,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // agent app: live in the menu bar, no dock icon or main window.
         NSApp.setActivationPolicy(.accessory)
 
-        let controller = WallpaperController(store: store, renderer: wallpaper)
+        let controller = WallpaperController(
+            store: store, renderer: wallpaper, systemWallpaper: systemWallpaper)
         self.controller = controller
 
         // restore the license tier from any stored, still-valid token.
@@ -57,6 +59,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        // put the user's desktop picture back before we exit.
+        controller?.restoreSystemWallpaper()
         power.stop()
     }
 

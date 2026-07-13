@@ -28,6 +28,14 @@ private final class FakeStore: ConfigStoring {
     func save(_ config: WallpaperConfig) { stored = config; saveCount += 1 }
 }
 
+@MainActor
+private final class FakeSystemWallpaper: SystemWallpaperControlling {
+    var takeOverCount = 0
+    var restoreCount = 0
+    func takeOver() { takeOverCount += 1 }
+    func restore() { restoreCount += 1 }
+}
+
 private let clearEnv = EnvironmentSignals(
     isOccluded: false,
     isFullscreenAppFrontmost: false,
@@ -126,5 +134,56 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(renderer.dim, 0.9)
         t.expectEqual(store.stored.fitMode, .stretch)
         t.expectEqual(store.stored.playbackSettings.volume, 0.2)
+    }
+
+    // with replaceSystemWallpaper on, showing a video takes over the system wallpaper once,
+    // and clearing the video restores it.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: true))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        t.expectEqual(system.takeOverCount, 1)
+        // an unrelated refresh (env change) must not take over again.
+        controller.updateEnvironment(clearEnv)
+        t.expectEqual(system.takeOverCount, 1)
+        controller.clearVideo()
+        t.expectEqual(system.restoreCount, 1)
+    }
+
+    // with replaceSystemWallpaper off, showing a video never touches the system wallpaper.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: false))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        t.expectEqual(system.takeOverCount, 0)
+    }
+
+    // toggling the setting off while active restores immediately; back on takes over again.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: true))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        controller.setReplaceSystemWallpaper(false)
+        t.expectEqual(system.restoreCount, 1)
+        controller.setReplaceSystemWallpaper(true)
+        t.expectEqual(system.takeOverCount, 2)
+    }
+
+    // restoreSystemWallpaper (called on quit) restores once and is idempotent.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, replaceSystemWallpaper: true))
+        let system = FakeSystemWallpaper()
+        let controller = WallpaperController(
+            store: store, renderer: FakeRenderer(), systemWallpaper: system)
+        controller.start(environment: clearEnv)
+        controller.restoreSystemWallpaper()
+        controller.restoreSystemWallpaper()
+        t.expectEqual(system.restoreCount, 1)
     }
 }

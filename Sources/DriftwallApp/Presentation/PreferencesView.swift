@@ -31,6 +31,10 @@ struct PreferencesView: View {
             Section("Power") {
                 Toggle("Pause on battery", isOn: pauseOnBatteryBinding)
                 Toggle("Launch at login", isOn: launchAtLoginBinding)
+                Toggle("Replace system wallpaper while active", isOn: replaceSystemWallpaperBinding)
+                Text("Stops macOS from animating its own wallpaper behind Driftwall. Restored on quit.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Driftwall Pro") {
@@ -70,6 +74,13 @@ struct PreferencesView: View {
 
     private var launchAtLoginBinding: Binding<Bool> {
         Binding(get: { model.launchAtLogin }, set: { model.updateLaunchAtLogin($0) })
+    }
+
+    private var replaceSystemWallpaperBinding: Binding<Bool> {
+        Binding(
+            get: { model.replaceSystemWallpaper },
+            set: { model.updateReplaceSystemWallpaper($0) }
+        )
     }
 
     private func playbackBinding(_ keyPath: ReferenceWritableKeyPath<PreferencesModel, Double>) -> Binding<Double> {

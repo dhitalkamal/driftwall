@@ -14,6 +14,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
     t.expect(defaults.perDisplayVideos.isEmpty, "no per-display overrides by default")
     t.expect(defaults.licenseToken == nil, "no license by default")
     t.expectEqual(defaults.playbackSettings, PlaybackSettings())
+    // by default we take over the system wallpaper so macOS animates nothing behind us.
+    t.expectEqual(defaults.replaceSystemWallpaper, true)
 
     // a fully populated config round-trips through json for persistence.
     let full = WallpaperConfig(
@@ -28,7 +30,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
         playlistEnabled: true,
         playbackSettings: PlaybackSettings(volume: 0.4, dim: 0.2),
         pauseOnBattery: false,
-        licenseToken: "signed.token.value"
+        licenseToken: "signed.token.value",
+        replaceSystemWallpaper: false
     )
     t.expectEqual(full.hasVideo, true)
     do {

@@ -7,14 +7,22 @@ import Foundation
 public final class WallpaperController {
     private let store: ConfigStoring
     private let renderer: WallpaperRendering
+    private let systemWallpaper: SystemWallpaperControlling
 
     public private(set) var config: WallpaperConfig
     public private(set) var tier: LicenseTier = .free
     private var environment: EnvironmentSignals
+    private var isShowing = false
+    private var didTakeOverSystemWallpaper = false
 
-    public init(store: ConfigStoring, renderer: WallpaperRendering) {
+    public init(
+        store: ConfigStoring,
+        renderer: WallpaperRendering,
+        systemWallpaper: SystemWallpaperControlling = NoopSystemWallpaper()
+    ) {
         self.store = store
         self.renderer = renderer
+        self.systemWallpaper = systemWallpaper
         self.config = store.load()
         self.environment = EnvironmentSignals(
             isOccluded: false,
@@ -82,6 +90,21 @@ public final class WallpaperController {
         applyPlayback()
     }
 
+    // user toggled whether we take over the macOS desktop picture while active.
+    public func setReplaceSystemWallpaper(_ enabled: Bool) {
+        config.replaceSystemWallpaper = enabled
+        store.save(config)
+        syncSystemWallpaper()
+    }
+
+    // restore the macOS desktop picture. call on quit so the user's wallpaper comes back.
+    public func restoreSystemWallpaper() {
+        if didTakeOverSystemWallpaper {
+            systemWallpaper.restore()
+            didTakeOverSystemWallpaper = false
+        }
+    }
+
     // an environment signal changed (occlusion, fullscreen app, battery).
     public func updateEnvironment(_ environment: EnvironmentSignals) {
         self.environment = environment
@@ -102,8 +125,24 @@ public final class WallpaperController {
             renderer.setFitMode(config.fitMode)
             renderer.setVolume(config.playbackSettings.volume)
             renderer.setDim(config.playbackSettings.dim)
+            isShowing = true
         } else {
             renderer.hide()
+            isShowing = false
+        }
+        syncSystemWallpaper()
+    }
+
+    // take over the system wallpaper while a video is showing and the setting is on; restore
+    // it otherwise. idempotent, so repeated refreshes do not thrash NSWorkspace.
+    private func syncSystemWallpaper() {
+        let shouldTakeOver = isShowing && config.replaceSystemWallpaper
+        if shouldTakeOver && !didTakeOverSystemWallpaper {
+            systemWallpaper.takeOver()
+            didTakeOverSystemWallpaper = true
+        } else if !shouldTakeOver && didTakeOverSystemWallpaper {
+            systemWallpaper.restore()
+            didTakeOverSystemWallpaper = false
         }
     }
 
