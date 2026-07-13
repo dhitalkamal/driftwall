@@ -1,90 +1,79 @@
-# LiveWallpaper
+# Driftwall
 
-A small macOS menu-bar app that plays an .mp4 (or .mov) as a live desktop wallpaper. It
-renders the video in a borderless window pinned to the desktop window level, so the video
-sits behind your desktop icons while you keep using the Mac normally.
+Live video wallpaper for macOS. Pick an .mp4 or .mov and it plays, looping seamlessly,
+behind your desktop icons on every display, while you keep using your Mac normally.
 
-## What it does
+## Tiers
 
-- Pick a video from the menu bar and it plays, looping seamlessly, behind the icons.
-- Spans every display and follows display changes (plugging or unplugging a monitor).
-- Pauses playback automatically when nothing can see it (a window or fullscreen app covers
-  it) and, optionally, while on battery. This keeps CPU and power use low.
-- Remembers the selected video and settings across launches.
-- Optional launch at login.
+- Free: one video across all displays, fit mode, volume, dim, pause on battery/occlusion,
+  launch at login.
+- Pro (license): a different video per display, playlists with scheduled rotation, playback
+  FX, and (planned) Lock Screen video. See docs/SELLING.md for the go-to-market plan.
 
 ## Requirements
 
 - macOS 13 or later.
-- Swift toolchain (the Xcode command line tools are enough to build; full Xcode is not
-  required).
+- Swift toolchain. The Xcode command line tools are enough to build and test; full Xcode is
+  only needed to notarize for distribution.
 
-## Build
+## Build and run
 
-    scripts/build_app.sh
+    scripts/build_app.sh        # produces dist/Driftwall.app (ad-hoc signed for local use)
+    open dist/Driftwall.app
 
-This produces `dist/LiveWallpaper.app`, ad-hoc signed for local use. Move it to
-`/Applications` if you want, then double click to run. Because it is ad-hoc signed (not
-notarized), the first launch may need a right click -> Open, or an approval in
-System Settings -> Privacy and Security.
+Or run without bundling:
 
-## Run without bundling
+    swift run DriftwallApp
 
-    swift run LiveWallpaperApp
+The app lives in the menu bar (no dock icon). Click the icon, choose a video or open
+Preferences. Quitting removes the wallpaper and reveals your normal desktop; the app never
+changes the system desktop-picture setting.
 
-## Usage
+## Tests
 
-1. Launch the app. It lives in the menu bar (no dock icon).
-2. Click the menu bar icon -> Choose Video... and pick an .mp4 or .mov.
-3. The video appears behind your desktop icons on every screen.
-4. Use the menu to toggle Pause on Battery and Launch at Login, or Quit.
+    swift run DriftwallCoreTests
 
-Quitting removes the wallpaper window and reveals your normal desktop. The app never
-changes the system desktop-picture setting, so there is nothing to undo.
+Exit code 0 means all passed. The runner is a small dependency-free harness (see
+`Tests/DriftwallCoreTests/TestRunner.swift`) so tests run under the command line tools, where
+neither XCTest nor the swift-testing macro plugin is available. It ports to XCTest easily.
 
 ## How it works
 
-macOS has no public API to set a video as the desktop picture, so this app uses the
-standard (unofficial) technique: a borderless NSWindow per screen at the desktop window
-level.
+macOS has no public API to set a video as the desktop picture, so Driftwall uses the standard
+(unofficial) technique: a borderless NSWindow per screen at the desktop window level.
 
-- Window level: `CGWindowLevelForKey(.desktopWindow)`, which sits above the static desktop
-  picture and below the icons.
-- Collection behavior: `[.canJoinAllSpaces, .stationary, .ignoresCycle]`. The `.stationary`
-  flag is required, otherwise a non-normal window level defaults to transient and the window
-  disappears in Mission Control.
-- The window ignores mouse events, so clicks pass through to the desktop and icons.
-- Video plays through a single `AVQueuePlayer` driven by `AVPlayerLooper` for gapless
-  looping, muted, with one `AVPlayerLayer` per screen sharing that player.
-- Power management samples battery state (IOKit power sources) and window occlusion, and the
-  playback policy decides play vs pause from those signals.
+- Window level `CGWindowLevelForKey(.desktopWindow)` sits above the static desktop picture
+  and below the icons. Collection behavior `[.canJoinAllSpaces, .stationary, .ignoresCycle]`;
+  `.stationary` is required or the window vanishes in Mission Control. The window ignores
+  mouse events so clicks pass through.
+- Video plays through `AVQueuePlayer` + `AVPlayerLooper` for gapless looping, with a dim
+  overlay layer and per-fit-mode video gravity.
+- Playback pauses when occluded, on a fullscreen app, or on battery, driven by a pure
+  playback policy fed by IOKit power state and window occlusion.
 
 ## Architecture
 
 Hexagonal layering, imports flow inward only:
 
-- `Sources/LiveWallpaperCore` (pure, no AppKit): the domain and application logic.
-  - `Domain`: `PlaybackPolicy`, `PlaybackConditions`, `WallpaperConfig`, `EnvironmentSignals`.
-  - `Application`: `WallpaperController` plus the `WallpaperRendering` and `ConfigStoring`
-    ports.
-- `Sources/LiveWallpaperApp` (AppKit/AVFoundation/IOKit): the adapters that implement the
-  ports and the menu-bar presentation.
+- `Sources/DriftwallCore` (pure, no AppKit): domain and application logic. Domain holds
+  PlaybackPolicy, WallpaperConfig, FitMode, Playlist/RotationState, PlaybackSettings, and
+  License/FeatureGate. Application holds WallpaperController, WallpaperResolver, and the ports.
+- `Sources/DriftwallApp` (AppKit/AVFoundation/IOKit/CryptoKit): adapters that implement the
+  ports, the SwiftUI preferences window, the menu bar, and the license verifier.
 
-## Tests
+## Packaging and selling
 
-The core logic is covered by tests that run without XCTest or full Xcode:
-
-    swift run LiveWallpaperCoreTests
-
-Exit code 0 means all passed. The runner is a small dependency-free harness (see
-`Tests/LiveWallpaperCoreTests/TestRunner.swift`) chosen because this build environment has
-only the command line tools, where neither XCTest nor the swift-testing macro plugin is
-available. The tests are structured so they port to XCTest easily if you later prefer it.
+- `scripts/build_app.sh` signs with `$DEVELOPER_ID_IDENTITY` if set (hardened runtime always
+  on), else ad-hoc for local use.
+- `scripts/notarize.sh` and `scripts/make_dmg.sh` produce a notarized, stapled DMG.
+- `scripts/license/` generates the issuer keypair and issues offline license tokens.
+- `docs/SELLING.md` is the full checklist to go from this repo to a paid product.
 
 ## Limitations
 
-- Desktop only. This does not touch the Lock Screen, which would require private APIs or
-  system-file replacement that break across OS updates.
-- Not sandboxed and not App Store distributable, by nature of the desktop window technique.
-- The desktop window level is an undocumented technique, not an Apple-supported API. It has
-  been stable for years but is not guaranteed across future macOS releases.
+- Desktop only. Lock Screen video is planned but not shipped (it needs the macOS 26 native
+  wallpaper APIs, pending a research spike).
+- Not sandboxed and not Mac App Store distributable, by nature of the desktop window
+  technique. Sold direct (notarized), not through the App Store.
+- The desktop window level is an undocumented technique. Stable for years across many apps,
+  but retest on each annual macOS release.
