@@ -9,11 +9,17 @@ final class DesktopVideoWallpaper: WallpaperRendering {
     private let looper = VideoLooperPlayer()
     private var windows: [WallpaperWindow] = []
     private var currentURL: URL?
+    private var currentFitMode: FitMode = .fill
+    private var currentDim: Double = 0
     private var rebuildWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
 
     // invoked (on the main thread) whenever a window's occlusion state changes.
     var onOcclusionChange: (@MainActor () -> Void)?
+    // invoked (on the main thread) when the current video fails to load.
+    var onLoadFailure: (@MainActor (String) -> Void)? {
+        didSet { looper.onLoadFailure = onLoadFailure }
+    }
 
     init() {
         let center = NotificationCenter.default
@@ -54,6 +60,24 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         looper.pause()
     }
 
+    func setFitMode(_ mode: FitMode) {
+        currentFitMode = mode
+        for window in windows {
+            window.playerView.setFitMode(mode)
+        }
+    }
+
+    func setVolume(_ volume: Double) {
+        looper.setVolume(volume)
+    }
+
+    func setDim(_ dim: Double) {
+        currentDim = dim
+        for window in windows {
+            window.playerView.setDim(dim)
+        }
+    }
+
     func hide() {
         rebuildWork?.cancel()
         for window in windows {
@@ -82,6 +106,8 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         windows = NSScreen.screens.map { screen in
             let window = WallpaperWindow(screen: screen)
             window.playerView.bind(to: looper.player)
+            window.playerView.setFitMode(currentFitMode)
+            window.playerView.setDim(currentDim)
             window.orderFront(nil)
             return window
         }

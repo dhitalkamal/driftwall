@@ -6,10 +6,16 @@ import DriftwallCore
 private final class FakeRenderer: WallpaperRendering {
     var shownVideos: [URL] = []
     var commands: [String] = []
+    var fitMode: FitMode?
+    var volume: Double?
+    var dim: Double?
     func show(video url: URL) { shownVideos.append(url) }
     func play() { commands.append("play") }
     func pause() { commands.append("pause") }
     func hide() { commands.append("hide") }
+    func setFitMode(_ mode: FitMode) { fitMode = mode }
+    func setVolume(_ volume: Double) { self.volume = volume }
+    func setDim(_ dim: Double) { self.dim = dim }
     var lastCommand: String? { commands.last }
 }
 
@@ -89,5 +95,36 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         controller.setPauseOnBattery(false)
         t.expectEqual(renderer.lastCommand, "play")
         t.expectEqual(store.stored.pauseOnBattery, false)
+    }
+
+    // showing a video applies the saved appearance settings to the renderer.
+    do {
+        let config = WallpaperConfig(
+            selectedVideo: sampleVideo,
+            fitMode: .fit,
+            playbackSettings: PlaybackSettings(volume: 0.6, dim: 0.3)
+        )
+        let store = FakeStore(config)
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        t.expectEqual(renderer.fitMode, .fit)
+        t.expectEqual(renderer.volume, 0.6)
+        t.expectEqual(renderer.dim, 0.3)
+    }
+
+    // changing fit mode and playback settings persists and pushes to the renderer.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        controller.setFitMode(.stretch)
+        controller.setPlaybackSettings(PlaybackSettings(volume: 0.2, dim: 0.9))
+        t.expectEqual(renderer.fitMode, .stretch)
+        t.expectEqual(renderer.volume, 0.2)
+        t.expectEqual(renderer.dim, 0.9)
+        t.expectEqual(store.stored.fitMode, .stretch)
+        t.expectEqual(store.stored.playbackSettings.volume, 0.2)
     }
 }

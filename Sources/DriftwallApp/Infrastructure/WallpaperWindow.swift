@@ -1,9 +1,12 @@
 import AppKit
 import AVFoundation
+import DriftwallCore
 
-// a layer-backed view whose backing layer is an AVPlayerLayer, so the video fills the view
-// and resizes with it automatically.
+// a layer-backed view whose backing layer is an AVPlayerLayer, with a black dim overlay
+// sublayer on top. the video fills the view and resizes with it; the dim layer tracks bounds.
 final class PlayerView: NSView {
+    private let dimLayer = CALayer()
+
     override func makeBackingLayer() -> CALayer {
         let layer = AVPlayerLayer()
         layer.videoGravity = .resizeAspectFill
@@ -17,6 +20,34 @@ final class PlayerView: NSView {
     func bind(to player: AVPlayer) {
         wantsLayer = true
         playerLayer?.player = player
+        dimLayer.backgroundColor = NSColor.black.cgColor
+        dimLayer.opacity = 0
+        dimLayer.frame = bounds
+        playerLayer?.addSublayer(dimLayer)
+    }
+
+    func setFitMode(_ mode: FitMode) {
+        playerLayer?.videoGravity = mode.videoGravity
+    }
+
+    func setDim(_ dim: Double) {
+        dimLayer.opacity = Float(min(1, max(0, dim)))
+    }
+
+    override func layout() {
+        super.layout()
+        // keep the dim overlay covering the whole view as it resizes.
+        dimLayer.frame = bounds
+    }
+}
+
+extension FitMode {
+    var videoGravity: AVLayerVideoGravity {
+        switch self {
+        case .fill: return .resizeAspectFill
+        case .fit: return .resizeAspect
+        case .stretch: return .resize
+        }
     }
 }
 

@@ -14,6 +14,12 @@ public protocol WallpaperRendering: AnyObject {
     func pause()
     // tear the wallpaper surface down (no video selected).
     func hide()
+    // how the video is scaled to the display.
+    func setFitMode(_ mode: FitMode)
+    // audio volume, 0...1. 0 mutes.
+    func setVolume(_ volume: Double)
+    // dim overlay strength, 0...1. 0 is no dim, 1 is fully black.
+    func setDim(_ dim: Double)
 }
 
 // loads and persists the user's wallpaper settings.

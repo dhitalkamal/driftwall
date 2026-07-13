@@ -1,14 +1,15 @@
 import Foundation
 
-// orchestrates the wallpaper: owns the current config and the latest environment signals,
-// and drives the renderer through the playback policy. main-actor isolated: it runs on the
-// main thread and drives main-actor renderer/store adapters.
+// orchestrates the wallpaper: owns the current config, the license tier, and the latest
+// environment signals, and drives the renderer through the playback policy. main-actor
+// isolated: it runs on the main thread and drives main-actor renderer/store adapters.
 @MainActor
 public final class WallpaperController {
     private let store: ConfigStoring
     private let renderer: WallpaperRendering
 
     public private(set) var config: WallpaperConfig
+    public private(set) var tier: LicenseTier = .free
     private var environment: EnvironmentSignals
 
     public init(store: ConfigStoring, renderer: WallpaperRendering) {
@@ -31,12 +32,32 @@ public final class WallpaperController {
         applyPlayback()
     }
 
+    // the license tier, derived by the app layer from a verified license.
+    public func setTier(_ tier: LicenseTier) {
+        self.tier = tier
+        refreshSurface()
+        applyPlayback()
+    }
+
     // user picked a new video: persist it, show it, and re-evaluate playback.
     public func selectVideo(_ url: URL) {
         config.selectedVideo = url
         store.save(config)
         refreshSurface()
         applyPlayback()
+    }
+
+    public func setFitMode(_ mode: FitMode) {
+        config.fitMode = mode
+        store.save(config)
+        renderer.setFitMode(mode)
+    }
+
+    public func setPlaybackSettings(_ settings: PlaybackSettings) {
+        config.playbackSettings = settings
+        store.save(config)
+        renderer.setVolume(settings.volume)
+        renderer.setDim(settings.dim)
     }
 
     // user toggled whether playback pauses on battery.
@@ -52,14 +73,28 @@ public final class WallpaperController {
         applyPlayback()
     }
 
-    // show or tear down the surface based on whether a video is selected.
+    // show the resolved video (or tear down if none) and re-apply appearance settings.
     private func refreshSurface() {
-        if let url = config.selectedVideo {
+        let url = WallpaperResolver.video(
+            for: primaryDisplayId,
+            config: config,
+            tier: tier,
+            playlistOrder: Array(config.playlist?.videos.indices ?? [].indices),
+            playlistAdvance: 0
+        )
+        if let url {
             renderer.show(video: url)
+            renderer.setFitMode(config.fitMode)
+            renderer.setVolume(config.playbackSettings.volume)
+            renderer.setDim(config.playbackSettings.dim)
         } else {
             renderer.hide()
         }
     }
+
+    // the live surface currently applies one resolved video across displays; per-display
+    // rendering is driven by the same resolver once the adapter supports distinct players.
+    private let primaryDisplayId = "primary"
 
     private func applyPlayback() {
         guard config.hasVideo else { return }
