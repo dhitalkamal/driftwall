@@ -10,5 +10,6 @@ runFeatureGateTests(runner)
 runLicenseTests(runner)
 runRotationTests(runner)
 runPlaybackSettingsTests(runner)
+runWallpaperResolverTests(runner)
 
 exit(runner.summarize())
