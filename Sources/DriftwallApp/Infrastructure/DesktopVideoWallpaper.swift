@@ -92,6 +92,12 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         }
     }
 
+    // a compact snapshot of window + player state for the diagnostics log.
+    var diagnostic: String {
+        let anyVisible = windows.contains { $0.occlusionState.contains(.visible) }
+        return "windows=\(windows.count) anyVisible=\(anyVisible) \(looper.diagnostic)"
+    }
+
     // re-assert the windows and force a fresh video frame; called on Space return so a
     // reclaimed surface repaints instead of staying black.
     func refresh() {

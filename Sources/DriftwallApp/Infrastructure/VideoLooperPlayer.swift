@@ -15,7 +15,6 @@ final class VideoLooperPlayer {
     private var isPlaying = false
 
     private var watchdog: Timer?
-    private var lastObservedSeconds: Double = 0
     private var stalledSamples = 0
 
     // invoked on the main thread when the loaded item fails to become ready.
@@ -87,8 +86,16 @@ final class VideoLooperPlayer {
         currentURL = nil
     }
 
-    // sample playback every few seconds; if it should be playing but time has not advanced for
-    // two samples, rebuild the pipeline to recover from a stalled/black state.
+    // a compact snapshot of player state for the diagnostics log.
+    var diagnostic: String {
+        "timeControl=\(player.timeControlStatus.rawValue) rate=\(player.rate) "
+            + "t=\(String(format: "%.2f", player.currentTime().seconds)) hasItem=\(player.currentItem != nil)"
+    }
+
+    // sample playback every few seconds; if we expect it to be playing but the player is not
+    // actually in the playing state for two samples, rebuild the pipeline to recover from a
+    // stalled state. uses timeControlStatus (not currentTime, which cycles on loop and would
+    // false-trigger) so looping never looks like a stall.
     private func startWatchdog() {
         let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.checkProgress() }
@@ -102,8 +109,7 @@ final class VideoLooperPlayer {
             stalledSamples = 0
             return
         }
-        let seconds = player.currentTime().seconds
-        if seconds.isFinite, seconds > lastObservedSeconds + 0.01 {
+        if player.timeControlStatus == .playing {
             stalledSamples = 0
         } else {
             stalledSamples += 1
@@ -112,6 +118,5 @@ final class VideoLooperPlayer {
                 buildPipeline(for: url)  // hard recovery: fresh decode pipeline and surface.
             }
         }
-        lastObservedSeconds = player.currentTime().seconds
     }
 }

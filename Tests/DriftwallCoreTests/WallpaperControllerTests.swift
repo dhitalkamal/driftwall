@@ -86,7 +86,7 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(renderer.lastCommand, "play")
     }
 
-    // environment change to occluded pauses, and back to clear resumes.
+    // occlusion no longer pauses playback (it strands the video paused/black on Space return).
     do {
         let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
         let renderer = FakeRenderer()
@@ -94,8 +94,6 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         controller.start(environment: clearEnv)
         controller.updateEnvironment(EnvironmentSignals(
             isOccluded: true, isFullscreenAppFrontmost: false, isOnBattery: false))
-        t.expectEqual(renderer.lastCommand, "pause")
-        controller.updateEnvironment(clearEnv)
         t.expectEqual(renderer.lastCommand, "play")
     }
 
@@ -194,19 +192,14 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(store.stored.showOnAllSpaces, false)
     }
 
-    // returning to a Space re-evaluates playback (resume) and forces a fresh frame so a
-    // long-off-screen video layer repaints instead of staying black.
+    // returning to a Space keeps the video playing and forces a fresh frame so a long-off-
+    // screen video layer repaints instead of staying black.
     do {
         let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
         let renderer = FakeRenderer()
         let controller = WallpaperController(store: store, renderer: renderer)
         controller.start(environment: clearEnv)
-        // simulate being covered on another Space, then returning.
-        controller.updateEnvironment(EnvironmentSignals(
-            isOccluded: true, isFullscreenAppFrontmost: false, isOnBattery: false))
-        t.expectEqual(renderer.lastCommand, "pause")
         let refreshesBefore = renderer.refreshCount
-        controller.updateEnvironment(clearEnv)   // occlusion cleared
         controller.handleSpaceChanged()
         t.expectEqual(renderer.lastCommand, "play")
         t.expect(renderer.refreshCount > refreshesBefore, "space change should force a refresh")

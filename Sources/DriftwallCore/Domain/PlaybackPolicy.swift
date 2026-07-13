@@ -36,7 +36,10 @@ public struct PlaybackPolicy: Sendable {
 
     public func decide(_ conditions: PlaybackConditions) -> PlaybackDecision {
         guard conditions.hasVideo else { return .pause }
-        if conditions.isOccluded { return .pause }
+        // note: occlusion is deliberately NOT a pause trigger. macOS does not reliably report
+        // when a desktop-level window becomes visible again after a Space switch, so pausing on
+        // occlusion strands the video paused and a long-off-screen paused layer renders black.
+        // keeping it playing guarantees a fresh frame is ready on return.
         if conditions.isFullscreenAppFrontmost { return .pause }
         if conditions.isOnBattery && pauseOnBattery { return .pause }
         return .play

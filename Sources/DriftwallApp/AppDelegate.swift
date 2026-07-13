@@ -13,10 +13,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menu = StatusMenuController()
     private var controller: WallpaperController?
     private var preferences: PreferencesWindowController?
+    private var heartbeat: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // agent app: live in the menu bar, no dock icon or main window.
         NSApp.setActivationPolicy(.accessory)
+        Diagnostics.log("launch")
         // install a main menu so Cmd+V and other editing shortcuts work in text fields.
         MainMenu.install()
 
@@ -53,12 +55,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.runModal()
         }
         power.onChange = { [weak self] in self?.syncEnvironment() }
-        wallpaper.onOcclusionChange = { [weak self] in self?.syncEnvironment() }
+        wallpaper.onOcclusionChange = { [weak self] in
+            Diagnostics.log("occlusionChange: \(self?.wallpaper.diagnostic ?? "-")")
+            self?.syncEnvironment()
+        }
         wallpaper.onScreensChange = { [weak self] in self?.controller?.handleScreensChanged() }
-        wallpaper.onSpaceChange = { [weak self] in self?.controller?.handleSpaceChanged() }
+        wallpaper.onSpaceChange = { [weak self] in
+            guard let self else { return }
+            Diagnostics.log("spaceChange BEFORE: \(self.wallpaper.diagnostic)")
+            self.controller?.handleSpaceChanged()
+            Diagnostics.log("spaceChange AFTER: \(self.wallpaper.diagnostic)")
+        }
         power.start()
 
         controller.start(environment: currentEnvironment())
+        startHeartbeat()
 
         // no video yet: open preferences so the user can pick one.
         if !controller.config.hasVideo {
@@ -70,6 +81,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // put the user's desktop picture back before we exit.
         controller?.restoreSystemWallpaper()
         power.stop()
+    }
+
+    // periodic state snapshot so the diagnostics log always has a recent picture at the moment
+    // a black is observed.
+    private func startHeartbeat() {
+        let timer = Timer(timeInterval: 3, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                Diagnostics.log("heartbeat: \(self.wallpaper.diagnostic)")
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        heartbeat = timer
     }
 
     private func currentEnvironment() -> EnvironmentSignals {
