@@ -47,6 +47,21 @@ public final class WallpaperController {
         applyPlayback()
     }
 
+    // clear the wallpaper without quitting: forget the video and tear the surface down.
+    public func clearVideo() {
+        config.selectedVideo = nil
+        config.perDisplayVideos = [:]
+        store.save(config)
+        refreshSurface()
+    }
+
+    // store a verified license token and its tier (the app layer verifies the signature).
+    public func setLicense(token: String?, tier: LicenseTier) {
+        config.licenseToken = token
+        store.save(config)
+        setTier(tier)
+    }
+
     public func setFitMode(_ mode: FitMode) {
         config.fitMode = mode
         store.save(config)

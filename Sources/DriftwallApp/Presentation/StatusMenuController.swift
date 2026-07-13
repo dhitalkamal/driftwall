@@ -2,20 +2,13 @@ import AppKit
 import UniformTypeIdentifiers
 
 // the menu-bar status item and its menu. owns no app logic; it surfaces user intent through
-// callbacks the app delegate wires up, and reflects current state via syncState.
+// callbacks the app delegate wires up. detailed settings live in the preferences window.
 @MainActor
 final class StatusMenuController: NSObject {
     var onChooseVideo: ((URL) -> Void)?
-    var onTogglePauseOnBattery: ((Bool) -> Void)?
-    var onToggleLaunchAtLogin: ((Bool) -> Void)?
+    var onOpenPreferences: (() -> Void)?
 
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let pauseOnBatteryItem = NSMenuItem(
-        title: "Pause on Battery", action: nil, keyEquivalent: ""
-    )
-    private let launchAtLoginItem = NSMenuItem(
-        title: "Launch at Login", action: nil, keyEquivalent: ""
-    )
 
     override init() {
         super.init()
@@ -38,15 +31,11 @@ final class StatusMenuController: NSObject {
         choose.target = self
         menu.addItem(choose)
 
-        menu.addItem(.separator())
-
-        pauseOnBatteryItem.action = #selector(togglePauseOnBattery)
-        pauseOnBatteryItem.target = self
-        menu.addItem(pauseOnBatteryItem)
-
-        launchAtLoginItem.action = #selector(toggleLaunchAtLogin)
-        launchAtLoginItem.target = self
-        menu.addItem(launchAtLoginItem)
+        let prefs = NSMenuItem(
+            title: "Preferences...", action: #selector(openPreferences), keyEquivalent: ","
+        )
+        prefs.target = self
+        menu.addItem(prefs)
 
         menu.addItem(.separator())
 
@@ -57,12 +46,6 @@ final class StatusMenuController: NSObject {
         menu.addItem(quit)
 
         statusItem.menu = menu
-    }
-
-    // reflect current settings in the menu checkmarks.
-    func syncState(pauseOnBattery: Bool, launchAtLogin: Bool) {
-        pauseOnBatteryItem.state = pauseOnBattery ? .on : .off
-        launchAtLoginItem.state = launchAtLogin ? .on : .off
     }
 
     @objc private func chooseVideo() {
@@ -77,16 +60,8 @@ final class StatusMenuController: NSObject {
         }
     }
 
-    @objc private func togglePauseOnBattery() {
-        let newValue = pauseOnBatteryItem.state != .on
-        pauseOnBatteryItem.state = newValue ? .on : .off
-        onTogglePauseOnBattery?(newValue)
-    }
-
-    @objc private func toggleLaunchAtLogin() {
-        let newValue = launchAtLoginItem.state != .on
-        launchAtLoginItem.state = newValue ? .on : .off
-        onToggleLaunchAtLogin?(newValue)
+    @objc private func openPreferences() {
+        onOpenPreferences?()
     }
 
     @objc private func quit() {
