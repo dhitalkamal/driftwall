@@ -22,6 +22,9 @@ public protocol WallpaperRendering: AnyObject {
     func setDim(_ dim: Double)
     // whether the wallpaper window joins every Space.
     func setShowOnAllSpaces(_ enabled: Bool)
+    // re-assert the wallpaper windows and force the video to present a fresh frame. called on
+    // Space changes / resume so a reclaimed GPU surface repaints instead of staying black.
+    func refresh()
 }
 
 // loads and persists the user's wallpaper settings.

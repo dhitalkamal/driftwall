@@ -19,6 +19,8 @@ final class DesktopVideoWallpaper: WallpaperRendering {
     var onOcclusionChange: (@MainActor () -> Void)?
     // invoked (on the main thread) after the display arrangement changes and windows rebuild.
     var onScreensChange: (@MainActor () -> Void)?
+    // invoked (on the main thread) when the active Space changes.
+    var onSpaceChange: (@MainActor () -> Void)?
     // invoked (on the main thread) when the current video fails to load.
     var onLoadFailure: (@MainActor (String) -> Void)? {
         didSet { looper.onLoadFailure = onLoadFailure }
@@ -39,6 +41,15 @@ final class DesktopVideoWallpaper: WallpaperRendering {
             queue: .main
         ) { _ in
             MainActor.assumeIsolated { self.onOcclusionChange?() }
+        })
+        // active-Space changes are posted on NSWorkspace's own notification center, not the
+        // default one. this is the reliable resume signal (window occlusion is not).
+        observers.append(NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            MainActor.assumeIsolated { self.onSpaceChange?() }
         })
     }
 
@@ -79,6 +90,16 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         for window in windows {
             window.playerView.setDim(dim)
         }
+    }
+
+    // re-assert the windows and force a fresh video frame; called on Space return so a
+    // reclaimed surface repaints instead of staying black.
+    func refresh() {
+        guard currentURL != nil else { return }
+        for window in windows {
+            window.orderFront(nil)
+        }
+        looper.forceCurrentFrame()
     }
 
     func setShowOnAllSpaces(_ enabled: Bool) {

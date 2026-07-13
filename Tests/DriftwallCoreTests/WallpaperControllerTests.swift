@@ -10,7 +10,9 @@ private final class FakeRenderer: WallpaperRendering {
     var volume: Double?
     var dim: Double?
     var showOnAllSpaces: Bool?
+    var refreshCount = 0
     var events: [String] = []
+    func refresh() { refreshCount += 1 }
     func show(video url: URL) { shownVideos.append(url); events.append("show") }
     func play() { commands.append("play") }
     func pause() { commands.append("pause") }
@@ -190,6 +192,34 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         controller.setShowOnAllSpaces(false)
         t.expectEqual(renderer.showOnAllSpaces, false)
         t.expectEqual(store.stored.showOnAllSpaces, false)
+    }
+
+    // returning to a Space re-evaluates playback (resume) and forces a fresh frame so a
+    // long-off-screen video layer repaints instead of staying black.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        // simulate being covered on another Space, then returning.
+        controller.updateEnvironment(EnvironmentSignals(
+            isOccluded: true, isFullscreenAppFrontmost: false, isOnBattery: false))
+        t.expectEqual(renderer.lastCommand, "pause")
+        let refreshesBefore = renderer.refreshCount
+        controller.updateEnvironment(clearEnv)   // occlusion cleared
+        controller.handleSpaceChanged()
+        t.expectEqual(renderer.lastCommand, "play")
+        t.expect(renderer.refreshCount > refreshesBefore, "space change should force a refresh")
+    }
+
+    // a space change while nothing is showing does nothing.
+    do {
+        let store = FakeStore(WallpaperConfig())
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        controller.handleSpaceChanged()
+        t.expectEqual(renderer.refreshCount, 0)
     }
 
     // restoreSystemWallpaper (called on quit) restores once and is idempotent.

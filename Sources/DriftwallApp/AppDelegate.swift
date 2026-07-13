@@ -55,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         power.onChange = { [weak self] in self?.syncEnvironment() }
         wallpaper.onOcclusionChange = { [weak self] in self?.syncEnvironment() }
         wallpaper.onScreensChange = { [weak self] in self?.controller?.handleScreensChanged() }
+        wallpaper.onSpaceChange = { [weak self] in self?.controller?.handleSpaceChanged() }
         power.start()
 
         controller.start(environment: currentEnvironment())

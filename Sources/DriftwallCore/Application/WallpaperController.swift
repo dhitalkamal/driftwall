@@ -127,6 +127,15 @@ public final class WallpaperController {
         }
     }
 
+    // the active Space changed. macOS does not reliably deliver a window-occlusion event when
+    // returning to a Space, so re-run the playback decision here and force the renderer to
+    // repaint a fresh frame (a paused/long-off-screen video layer otherwise shows black).
+    public func handleSpaceChanged() {
+        guard isShowing else { return }
+        applyPlayback()
+        renderer.refresh()
+    }
+
     // show the resolved video (or tear down if none) and re-apply appearance settings.
     private func refreshSurface() {
         let url = WallpaperResolver.video(
