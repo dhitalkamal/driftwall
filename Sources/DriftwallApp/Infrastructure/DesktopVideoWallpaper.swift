@@ -102,12 +102,14 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         return "windows=\(windows.count) anyVisible=\(anyVisible) \(looper.diagnostic)"
     }
 
-    // re-assert the windows and force a fresh video frame; called on Space return so a
-    // reclaimed surface repaints instead of staying black.
+    // called on Space return: install fresh AVPlayerLayer surfaces (the old ones stop
+    // compositing after being off a non-active Space, leaving a frozen frame) and force a
+    // fresh frame from the still-playing player.
     func refresh() {
         guard currentURL != nil else { return }
         for window in windows {
             window.orderFront(nil)
+            window.playerView.rebuildPlayerLayer()
         }
         looper.forceCurrentFrame()
     }

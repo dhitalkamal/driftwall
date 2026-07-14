@@ -2,32 +2,46 @@ import AppKit
 import AVFoundation
 import DriftwallCore
 
-// a layer-backed view whose backing layer is an AVPlayerLayer, with a black dim overlay
-// sublayer on top. the video fills the view and resizes with it; the dim layer tracks bounds.
+// a layer-backed view hosting a swappable AVPlayerLayer with a black dim overlay on top. the
+// AVPlayerLayer is a sublayer (not the backing layer) so it can be rebuilt in place: when a
+// window has been off a non-active Space for a while its GPU surface is reclaimed and the old
+// layer stops compositing (frozen frame), so on Space return we install a fresh layer bound to
+// the still-playing player, which composites live video again.
 final class PlayerView: NSView {
+    private var playerLayer: AVPlayerLayer?
     private let dimLayer = CALayer()
+    private weak var boundPlayer: AVPlayer?
+    private var gravity: AVLayerVideoGravity = .resizeAspectFill
 
-    override func makeBackingLayer() -> CALayer {
-        let layer = AVPlayerLayer()
-        layer.videoGravity = .resizeAspectFill
-        return layer
-    }
-
-    var playerLayer: AVPlayerLayer? {
-        layer as? AVPlayerLayer
-    }
+    override func makeBackingLayer() -> CALayer { CALayer() }
 
     func bind(to player: AVPlayer) {
         wantsLayer = true
-        playerLayer?.player = player
+        boundPlayer = player
         dimLayer.backgroundColor = NSColor.black.cgColor
-        dimLayer.opacity = 0
+        rebuildPlayerLayer()
+    }
+
+    // install a fresh AVPlayerLayer surface, preserving fit and dim. safe to call repeatedly.
+    func rebuildPlayerLayer() {
+        guard let hostLayer = layer else { return }
+        playerLayer?.removeFromSuperlayer()
+        dimLayer.removeFromSuperlayer()
+
+        let newLayer = AVPlayerLayer()
+        newLayer.videoGravity = gravity
+        newLayer.frame = bounds
+        newLayer.player = boundPlayer
+        hostLayer.addSublayer(newLayer)
+        playerLayer = newLayer
+
         dimLayer.frame = bounds
-        playerLayer?.addSublayer(dimLayer)
+        hostLayer.addSublayer(dimLayer)  // keep dim on top
     }
 
     func setFitMode(_ mode: FitMode) {
-        playerLayer?.videoGravity = mode.videoGravity
+        gravity = mode.videoGravity
+        playerLayer?.videoGravity = gravity
     }
 
     func setDim(_ dim: Double) {
@@ -36,7 +50,8 @@ final class PlayerView: NSView {
 
     override func layout() {
         super.layout()
-        // keep the dim overlay covering the whole view as it resizes.
+        // keep the video and dim layers covering the whole view as it resizes.
+        playerLayer?.frame = bounds
         dimLayer.frame = bounds
     }
 }
