@@ -11,8 +11,10 @@ final class VideoLooperPlayer {
     let player = AVQueuePlayer()
     private var looper: AVPlayerLooper?
     private var statusObservation: NSKeyValueObservation?
+    private var currentItemObservation: NSKeyValueObservation?
     private var currentURL: URL?
     private var isPlaying = false
+    private var desiredRate: Float = 1.0
 
     private var watchdog: Timer?
     private var stalledSamples = 0
@@ -25,6 +27,14 @@ final class VideoLooperPlayer {
         player.volume = 0
         // the looper drives item cycling; do not let the queue player advance on its own.
         player.actionAtItemEnd = .none
+        // AVPlayerLooper resets the rate to 1.0 each time it advances to the next looped item,
+        // so re-apply the desired speed whenever the current item changes.
+        currentItemObservation = player.observe(\.currentItem) { [weak self] player, _ in
+            MainActor.assumeIsolated {
+                guard let self, self.isPlaying, player.currentItem != nil else { return }
+                player.rate = self.desiredRate
+            }
+        }
         startWatchdog()
     }
 
@@ -45,7 +55,7 @@ final class VideoLooperPlayer {
         // recreate the looper for the new item; dropping the old one stops its treadmill.
         looper = AVPlayerLooper(player: player, templateItem: item)
         if isPlaying {
-            player.playImmediately(atRate: 1.0)
+            player.playImmediately(atRate: desiredRate)
         }
     }
 
@@ -55,10 +65,17 @@ final class VideoLooperPlayer {
         player.isMuted = clamped <= 0
     }
 
+    func setSpeed(_ rate: Double) {
+        desiredRate = Float(min(2.0, max(0.25, rate)))
+        if isPlaying {
+            player.playImmediately(atRate: desiredRate)
+        }
+    }
+
     func play() {
         isPlaying = true
         // playImmediately pushes a frame as soon as one is available, unlike play().
-        player.playImmediately(atRate: 1.0)
+        player.playImmediately(atRate: desiredRate)
     }
 
     func pause() {
@@ -73,7 +90,7 @@ final class VideoLooperPlayer {
         let now = player.currentTime()
         player.seek(to: now, toleranceBefore: .zero, toleranceAfter: .zero)
         if isPlaying {
-            player.playImmediately(atRate: 1.0)
+            player.playImmediately(atRate: desiredRate)
         }
     }
 

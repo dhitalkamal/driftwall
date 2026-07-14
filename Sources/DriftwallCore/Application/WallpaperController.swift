@@ -15,6 +15,15 @@ public final class WallpaperController {
     private var isShowing = false
     private var didTakeOverSystemWallpaper = false
 
+    // playlist rotation state. order is the play sequence (shuffled or natural); advance counts
+    // how many times we have rotated. resolved via WallpaperResolver.
+    private var playlistOrder: [Int] = []
+    private var playlistAdvance = 0
+
+    // fired when the rotation schedule may have changed (playlist edited, enabled, or tier
+    // changed) so the app can (re)schedule its rotation timer.
+    public var onRotationScheduleChanged: (@MainActor () -> Void)?
+
     public init(
         store: ConfigStoring,
         renderer: WallpaperRendering,
@@ -29,6 +38,7 @@ public final class WallpaperController {
             isFullscreenAppFrontmost: false,
             isOnBattery: false
         )
+        regeneratePlaylistOrder()
     }
 
     // called once at launch: adopt the initial environment, restore the saved video, and
@@ -36,8 +46,10 @@ public final class WallpaperController {
     public func start(environment: EnvironmentSignals) {
         self.environment = environment
         config = store.load()
+        regeneratePlaylistOrder()
         refreshSurface()
         applyPlayback()
+        onRotationScheduleChanged?()
     }
 
     // the license tier, derived by the app layer from a verified license.
@@ -45,9 +57,10 @@ public final class WallpaperController {
         self.tier = tier
         refreshSurface()
         applyPlayback()
+        onRotationScheduleChanged?()
     }
 
-    // user picked a new video: persist it, show it, and re-evaluate playback.
+    // user picked a new single video: persist it, show it, and re-evaluate playback.
     public func selectVideo(_ url: URL) {
         config.selectedVideo = url
         store.save(config)
@@ -59,8 +72,10 @@ public final class WallpaperController {
     public func clearVideo() {
         config.selectedVideo = nil
         config.perDisplayVideos = [:]
+        config.playlistEnabled = false
         store.save(config)
         refreshSurface()
+        onRotationScheduleChanged?()
     }
 
     // store a verified license token and its tier (the app layer verifies the signature).
@@ -81,6 +96,47 @@ public final class WallpaperController {
         store.save(config)
         renderer.setVolume(settings.volume)
         renderer.setDim(settings.dim)
+        renderer.setSpeed(effectiveSpeed)
+    }
+
+    // pro: replace the playlist (videos, shuffle, interval). enabling is separate.
+    public func setPlaylist(_ playlist: Playlist?) {
+        config.playlist = playlist
+        store.save(config)
+        regeneratePlaylistOrder()
+        refreshSurface()
+        applyPlayback()
+        onRotationScheduleChanged?()
+    }
+
+    // pro: turn playlist rotation on/off.
+    public func setPlaylistEnabled(_ enabled: Bool) {
+        config.playlistEnabled = enabled
+        store.save(config)
+        regeneratePlaylistOrder()
+        refreshSurface()
+        applyPlayback()
+        onRotationScheduleChanged?()
+    }
+
+    // advance to the next playlist item (called by the app's rotation timer).
+    public func advancePlaylist() {
+        guard rotationIntervalSeconds != nil else { return }
+        playlistAdvance += 1
+        refreshSurface()
+        applyPlayback()
+    }
+
+    // the rotation interval in seconds when rotation is active (pro, enabled, 2+ videos),
+    // otherwise nil (no timer should run).
+    public var rotationIntervalSeconds: Int? {
+        guard FeatureGate.isAllowed(.playlists, tier: tier),
+              config.playlistEnabled,
+              let playlist = config.playlist,
+              playlist.videos.count >= 2 else {
+            return nil
+        }
+        return playlist.intervalSeconds
     }
 
     // user toggled whether playback pauses on battery.
@@ -136,14 +192,25 @@ public final class WallpaperController {
         renderer.refresh()
     }
 
+    private var effectiveSpeed: Double {
+        FeatureGate.isAllowed(.playbackFX, tier: tier) ? config.playbackSettings.speed : 1.0
+    }
+
+    private func regeneratePlaylistOrder() {
+        playlistAdvance = 0
+        let count = config.playlist?.videos.count ?? 0
+        let indices = Array(0..<count)
+        playlistOrder = (config.playlist?.shuffle ?? false) ? indices.shuffled() : indices
+    }
+
     // show the resolved video (or tear down if none) and re-apply appearance settings.
     private func refreshSurface() {
         let url = WallpaperResolver.video(
             for: primaryDisplayId,
             config: config,
             tier: tier,
-            playlistOrder: Array(config.playlist?.videos.indices ?? [].indices),
-            playlistAdvance: 0
+            playlistOrder: playlistOrder,
+            playlistAdvance: playlistAdvance
         )
         if let url {
             // set window behavior before showing so windows are created on the right Spaces.
@@ -152,6 +219,7 @@ public final class WallpaperController {
             renderer.setFitMode(config.fitMode)
             renderer.setVolume(config.playbackSettings.volume)
             renderer.setDim(config.playbackSettings.dim)
+            renderer.setSpeed(effectiveSpeed)
             isShowing = true
         } else {
             renderer.hide()
@@ -180,9 +248,9 @@ public final class WallpaperController {
     private let primaryDisplayId = "primary"
 
     private func applyPlayback() {
-        guard config.hasVideo else { return }
+        guard isShowing else { return }
         let conditions = PlaybackConditions(
-            hasVideo: config.hasVideo,
+            hasVideo: true,
             isOccluded: environment.isOccluded,
             isFullscreenAppFrontmost: environment.isFullscreenAppFrontmost,
             isOnBattery: environment.isOnBattery

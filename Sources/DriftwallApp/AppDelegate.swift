@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controller: WallpaperController?
     private var preferences: PreferencesWindowController?
     private var heartbeat: Timer?
+    private var rotationTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // agent app: live in the menu bar, no dock icon or main window.
@@ -29,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = WallpaperController(
             store: store, renderer: wallpaper, systemWallpaper: systemWallpaper)
         self.controller = controller
+        controller.onRotationScheduleChanged = { [weak self] in self?.rescheduleRotation() }
 
         // restore the license tier from any stored, still-valid token.
         if let token = controller.config.licenseToken,
@@ -81,6 +83,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // put the user's desktop picture back before we exit.
         controller?.restoreSystemWallpaper()
         power.stop()
+    }
+
+    // (re)schedule the playlist rotation timer to match the controller's current interval.
+    private func rescheduleRotation() {
+        rotationTimer?.invalidate()
+        rotationTimer = nil
+        guard let seconds = controller?.rotationIntervalSeconds, seconds > 0 else { return }
+        let timer = Timer(timeInterval: TimeInterval(seconds), repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.controller?.advancePlaylist() }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        rotationTimer = timer
     }
 
     // periodic state snapshot so the diagnostics log always has a recent picture at the moment

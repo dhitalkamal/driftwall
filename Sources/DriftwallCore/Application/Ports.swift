@@ -20,6 +20,8 @@ public protocol WallpaperRendering: AnyObject {
     func setVolume(_ volume: Double)
     // dim overlay strength, 0...1. 0 is no dim, 1 is fully black.
     func setDim(_ dim: Double)
+    // playback speed multiplier (1.0 = normal).
+    func setSpeed(_ rate: Double)
     // whether the wallpaper window joins every Space.
     func setShowOnAllSpaces(_ enabled: Bool)
     // re-assert the wallpaper windows and force the video to present a fresh frame. called on

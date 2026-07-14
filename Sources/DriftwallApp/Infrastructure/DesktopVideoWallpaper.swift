@@ -85,6 +85,10 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         looper.setVolume(volume)
     }
 
+    func setSpeed(_ rate: Double) {
+        looper.setSpeed(rate)
+    }
+
     func setDim(_ dim: Double) {
         currentDim = dim
         for window in windows {

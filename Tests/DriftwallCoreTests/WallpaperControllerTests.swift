@@ -9,6 +9,7 @@ private final class FakeRenderer: WallpaperRendering {
     var fitMode: FitMode?
     var volume: Double?
     var dim: Double?
+    var speed: Double?
     var showOnAllSpaces: Bool?
     var refreshCount = 0
     var events: [String] = []
@@ -20,8 +21,10 @@ private final class FakeRenderer: WallpaperRendering {
     func setFitMode(_ mode: FitMode) { fitMode = mode }
     func setVolume(_ volume: Double) { self.volume = volume }
     func setDim(_ dim: Double) { self.dim = dim }
+    func setSpeed(_ rate: Double) { speed = rate }
     func setShowOnAllSpaces(_ enabled: Bool) { showOnAllSpaces = enabled; events.append("spaces:\(enabled)") }
     var lastCommand: String? { commands.last }
+    var lastShown: URL? { shownVideos.last }
 }
 
 @MainActor
@@ -279,5 +282,54 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         if let s = spacesIndex, let sh = showIndex {
             t.expect(s < sh, "show-on-all-spaces should be set before show")
         }
+    }
+
+    // pro playlist rotates through its videos in order as it advances.
+    do {
+        let v0 = URL(fileURLWithPath: "/tmp/p0.mp4")
+        let v1 = URL(fileURLWithPath: "/tmp/p1.mp4")
+        let config = WallpaperConfig(
+            playlist: Playlist(videos: [v0, v1], shuffle: false, intervalSeconds: 60),
+            playlistEnabled: true
+        )
+        let store = FakeStore(config)
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.setTier(.pro)
+        controller.start(environment: clearEnv)
+        t.expectEqual(renderer.lastShown, v0)
+        controller.advancePlaylist()
+        t.expectEqual(renderer.lastShown, v1)
+        controller.advancePlaylist()
+        t.expectEqual(renderer.lastShown, v0)   // wraps
+        t.expectEqual(controller.rotationIntervalSeconds, 60)
+    }
+
+    // free tier: playlist rotation is inactive (no interval) and advancing does nothing.
+    do {
+        let v0 = URL(fileURLWithPath: "/tmp/p0.mp4")
+        let v1 = URL(fileURLWithPath: "/tmp/p1.mp4")
+        let config = WallpaperConfig(
+            selectedVideo: v0,
+            playlist: Playlist(videos: [v0, v1], shuffle: false, intervalSeconds: 60),
+            playlistEnabled: true
+        )
+        let store = FakeStore(config)
+        let controller = WallpaperController(store: store, renderer: FakeRenderer())
+        controller.start(environment: clearEnv)   // free tier by default
+        t.expect(controller.rotationIntervalSeconds == nil, "free tier has no rotation")
+    }
+
+    // playback speed is applied only for pro (free is pinned to 1.0).
+    do {
+        let store = FakeStore(WallpaperConfig(
+            selectedVideo: sampleVideo,
+            playbackSettings: PlaybackSettings(speed: 2.0)))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)   // free
+        t.expectEqual(renderer.speed, 1.0)
+        controller.setTier(.pro)
+        t.expectEqual(renderer.speed, 2.0)
     }
 }

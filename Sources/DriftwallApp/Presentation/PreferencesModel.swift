@@ -12,6 +12,11 @@ final class PreferencesModel: ObservableObject {
     @Published var fitMode: FitMode
     @Published var volume: Double
     @Published var dim: Double
+    @Published var speed: Double
+    @Published var playlistVideos: [URL]
+    @Published var playlistShuffle: Bool
+    @Published var playlistIntervalMinutes: Int
+    @Published var playlistEnabled: Bool
     @Published var pauseOnBattery: Bool
     @Published var replaceSystemWallpaper: Bool
     @Published var showOnAllSpaces: Bool
@@ -27,6 +32,11 @@ final class PreferencesModel: ObservableObject {
         fitMode = config.fitMode
         volume = config.playbackSettings.volume
         dim = config.playbackSettings.dim
+        speed = config.playbackSettings.speed
+        playlistVideos = config.playlist?.videos ?? []
+        playlistShuffle = config.playlist?.shuffle ?? false
+        playlistIntervalMinutes = max(1, (config.playlist?.intervalSeconds ?? 300) / 60)
+        playlistEnabled = config.playlistEnabled
         pauseOnBattery = config.pauseOnBattery
         replaceSystemWallpaper = config.replaceSystemWallpaper
         showOnAllSpaces = config.showOnAllSpaces
@@ -67,7 +77,54 @@ final class PreferencesModel: ObservableObject {
     }
 
     func updatePlayback() {
-        controller.setPlaybackSettings(PlaybackSettings(volume: volume, dim: dim))
+        controller.setPlaybackSettings(PlaybackSettings(volume: volume, dim: dim, speed: speed))
+    }
+
+    // MARK: - playlist (pro)
+
+    var playlistVideoNames: [String] { playlistVideos.map { $0.lastPathComponent } }
+
+    func addPlaylistVideos() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.movie, .mpeg4Movie, .quickTimeMovie]
+        panel.allowsMultipleSelection = true
+        panel.canChooseDirectories = false
+        panel.canChooseFiles = true
+        panel.prompt = "Add to Playlist"
+        if panel.runModal() == .OK {
+            playlistVideos.append(contentsOf: panel.urls)
+            commitPlaylist()
+        }
+    }
+
+    func removePlaylistVideo(at index: Int) {
+        guard playlistVideos.indices.contains(index) else { return }
+        playlistVideos.remove(at: index)
+        commitPlaylist()
+    }
+
+    func updatePlaylistShuffle(_ shuffle: Bool) {
+        playlistShuffle = shuffle
+        commitPlaylist()
+    }
+
+    func updatePlaylistInterval(_ minutes: Int) {
+        playlistIntervalMinutes = max(1, minutes)
+        commitPlaylist()
+    }
+
+    func updatePlaylistEnabled(_ enabled: Bool) {
+        playlistEnabled = enabled
+        controller.setPlaylistEnabled(enabled)
+    }
+
+    private func commitPlaylist() {
+        let playlist = Playlist(
+            videos: playlistVideos,
+            shuffle: playlistShuffle,
+            intervalSeconds: playlistIntervalMinutes * 60
+        )
+        controller.setPlaylist(playlist)
     }
 
     func updatePauseOnBattery(_ enabled: Bool) {

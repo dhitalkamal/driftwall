@@ -63,8 +63,11 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         )
     }
 
-    // true when there is any video to show, from the single selection or a per-display override.
+    // true when there is any video to show: a single selection, a per-display override, or an
+    // enabled non-empty playlist.
     public var hasVideo: Bool {
-        selectedVideo != nil || !perDisplayVideos.isEmpty
+        selectedVideo != nil
+            || !perDisplayVideos.isEmpty
+            || (playlistEnabled && !(playlist?.videos.isEmpty ?? true))
     }
 }
