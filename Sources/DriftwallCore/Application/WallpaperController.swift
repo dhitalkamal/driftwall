@@ -245,7 +245,8 @@ public final class WallpaperController {
             hasVideo: true,
             isOccluded: environment.isOccluded,
             isFullscreenAppFrontmost: environment.isFullscreenAppFrontmost,
-            isOnBattery: environment.isOnBattery
+            isOnBattery: environment.isOnBattery,
+            isDisplayAsleep: environment.isDisplayAsleep
         )
         let policy = PlaybackPolicy(pauseOnBattery: config.pauseOnBattery)
         switch policy.decide(conditions) {

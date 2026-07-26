@@ -6,17 +6,20 @@ public struct PlaybackConditions: Equatable, Sendable {
     public var isOccluded: Bool
     public var isFullscreenAppFrontmost: Bool
     public var isOnBattery: Bool
+    public var isDisplayAsleep: Bool
 
     public init(
         hasVideo: Bool,
         isOccluded: Bool,
         isFullscreenAppFrontmost: Bool,
-        isOnBattery: Bool
+        isOnBattery: Bool,
+        isDisplayAsleep: Bool = false
     ) {
         self.hasVideo = hasVideo
         self.isOccluded = isOccluded
         self.isFullscreenAppFrontmost = isFullscreenAppFrontmost
         self.isOnBattery = isOnBattery
+        self.isDisplayAsleep = isDisplayAsleep
     }
 }
 
@@ -36,6 +39,8 @@ public struct PlaybackPolicy: Sendable {
 
     public func decide(_ conditions: PlaybackConditions) -> PlaybackDecision {
         guard conditions.hasVideo else { return .pause }
+        // display asleep or screen locked: nothing is viewable, so always pause.
+        if conditions.isDisplayAsleep { return .pause }
         // pause when the wallpaper is genuinely hidden, to avoid decoding video no one can see.
         // the app debounces occlusion before setting isOccluded and forces it back to visible on
         // a Space change, so a brief occlusion during a switch never pauses (which would strand a

@@ -28,6 +28,10 @@ final class VideoLooperPlayer {
         player.volume = 0
         // the looper drives item cycling; do not let the queue player advance on its own.
         player.actionAtItemEnd = .none
+        // a muted, local-file wallpaper never AirPlays and never needs network stall heuristics;
+        // disabling both drops AirPlay route monitoring and tightens local startup.
+        player.allowsExternalPlayback = false
+        player.automaticallyWaitsToMinimizeStalling = false
         // AVPlayerLooper resets the rate to 1.0 each time it advances to the next looped item,
         // so re-apply the desired speed whenever the current item changes.
         currentItemObservation = player.observe(\.currentItem) { [weak self] player, _ in
@@ -36,7 +40,6 @@ final class VideoLooperPlayer {
                 player.rate = self.desiredRate
             }
         }
-        startWatchdog()
     }
 
     func load(url: URL) {
@@ -81,11 +84,14 @@ final class VideoLooperPlayer {
         isPlaying = true
         // playImmediately pushes a frame as soon as one is available, unlike play().
         player.playImmediately(atRate: desiredRate)
+        // the stall watchdog only needs to run while we expect playback; no wakeups while paused.
+        startWatchdog()
     }
 
     func pause() {
         isPlaying = false
         player.pause()
+        stopWatchdog()
     }
 
     // present a fresh frame on a layer whose surface was reclaimed while off a non-active Space.
@@ -105,6 +111,7 @@ final class VideoLooperPlayer {
     func teardown() {
         isPlaying = false
         player.pause()
+        stopWatchdog()
         statusObservation = nil
         looper = nil
         player.removeAllItems()
@@ -126,13 +133,22 @@ final class VideoLooperPlayer {
     // sample playback every few seconds; if we expect it to be playing but the player is not
     // actually in the playing state for two samples, rebuild the pipeline to recover from a
     // stalled state. uses timeControlStatus (not currentTime, which cycles on loop and would
-    // false-trigger) so looping never looks like a stall.
+    // false-trigger) so looping never looks like a stall. only runs while playing, so a paused
+    // wallpaper causes no periodic run-loop wakeups.
     private func startWatchdog() {
+        watchdog?.invalidate()
+        stalledSamples = 0
         let timer = Timer(timeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.checkProgress() }
         }
         RunLoop.main.add(timer, forMode: .common)
         watchdog = timer
+    }
+
+    private func stopWatchdog() {
+        watchdog?.invalidate()
+        watchdog = nil
+        stalledSamples = 0
     }
 
     private func checkProgress() {

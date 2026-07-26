@@ -18,18 +18,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // debounced "the wallpaper is genuinely not visible": true only after sustained occlusion,
     // so a brief occlusion during a Space switch never pauses (which would strand a frame).
     private var effectivelyHidden = false
+    private var displayAsleep = false
+    private var screenLocked = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // agent app: live in the menu bar, no dock icon or main window.
         NSApp.setActivationPolicy(.accessory)
         Diagnostics.log("launch")
-        // keep decoding/compositing the wallpaper even when it is off the active Space or
-        // occluded; otherwise App Nap throttles rendering and the video is stale for a beat on
-        // Space return. allows normal idle system sleep, so it does not keep the Mac awake.
-        activity = ProcessInfo.processInfo.beginActivity(
-            options: [.userInitiatedAllowingIdleSystemSleep],
-            reason: "Continuously rendering the live wallpaper across Spaces"
-        )
         // install a main menu so Cmd+V and other editing shortcuts work in text fields.
         MainMenu.install()
 
@@ -53,7 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             preferences?.show()
         }
         controller.onPlaybackStateChanged = { [weak self] state in
-            self?.menu.setPlaying(state == .playing)
+            guard let self else { return }
+            self.menu.setPlaying(state == .playing)
+            self.updateActivity(playing: state == .playing)
         }
 
         wallpaper.onLoadFailure = { message in
@@ -77,6 +74,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.controller?.handleSpaceChanged()
         }
         power.start()
+        installDisplayStateObservers()
 
         controller.start(environment: currentEnvironment())
 
@@ -127,11 +125,67 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    // pause decode entirely while the display is asleep or the screen is locked — the wallpaper
+    // is unviewable, so decoding is pure wasted power, and occlusion notifications do not fire
+    // for these transitions. this is the single largest energy win for an always-on wallpaper.
+    private func installDisplayStateObservers() {
+        let ws = NSWorkspace.shared.notificationCenter
+        ws.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.setDisplayAsleep(true) }
+        }
+        ws.addObserver(forName: NSWorkspace.screensDidWakeNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.setDisplayAsleep(false) }
+        }
+        let dnc = DistributedNotificationCenter.default()
+        dnc.addObserver(forName: .init("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.setScreenLocked(true) }
+        }
+        dnc.addObserver(forName: .init("com.apple.screenIsUnlocked"), object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.setScreenLocked(false) }
+        }
+    }
+
+    private func setDisplayAsleep(_ asleep: Bool) {
+        guard displayAsleep != asleep else { return }
+        displayAsleep = asleep
+        applyVisibilityChange(becameVisible: !asleep && !screenLocked)
+    }
+
+    private func setScreenLocked(_ locked: Bool) {
+        guard screenLocked != locked else { return }
+        screenLocked = locked
+        applyVisibilityChange(becameVisible: !locked && !displayAsleep)
+    }
+
+    // re-evaluate playback; on the transition back to visible, run the same rebuild + repaint
+    // path a Space change uses so waking/unlocking never shows a stale or black frame.
+    private func applyVisibilityChange(becameVisible: Bool) {
+        syncEnvironment()
+        if becameVisible {
+            controller?.handleSpaceChanged()
+        }
+    }
+
+    // hold an App-Nap-preventing activity assertion only while actually playing, so decode stays
+    // responsive across Spaces; drop it while paused/idle so macOS can deep-throttle the process.
+    private func updateActivity(playing: Bool) {
+        if playing, activity == nil {
+            activity = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiatedAllowingIdleSystemSleep],
+                reason: "Rendering the live wallpaper"
+            )
+        } else if !playing, let held = activity {
+            ProcessInfo.processInfo.endActivity(held)
+            activity = nil
+        }
+    }
+
     private func currentEnvironment() -> EnvironmentSignals {
         EnvironmentSignals(
             isOccluded: effectivelyHidden,
             isFullscreenAppFrontmost: false,
-            isOnBattery: power.isOnBattery
+            isOnBattery: power.isOnBattery,
+            isDisplayAsleep: displayAsleep || screenLocked
         )
     }
 

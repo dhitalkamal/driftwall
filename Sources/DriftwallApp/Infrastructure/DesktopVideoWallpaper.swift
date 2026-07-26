@@ -39,8 +39,18 @@ final class DesktopVideoWallpaper: WallpaperRendering {
             forName: NSWindow.didChangeOcclusionStateNotification,
             object: nil,
             queue: .main
-        ) { _ in
-            MainActor.assumeIsolated { self.onOcclusionChange?() }
+        ) { note in
+            // the observer runs on the main queue; capture a Sendable identity (not the window)
+            // so the main-actor hop below is data-race clean.
+            let changedWindow = (note.object as? NSWindow).map(ObjectIdentifier.init)
+            MainActor.assumeIsolated {
+                // only our wallpaper windows affect wallpaper visibility; ignore occlusion
+                // changes from unrelated windows such as the Preferences panel.
+                guard let changedWindow,
+                      self.windows.contains(where: { ObjectIdentifier($0) == changedWindow })
+                else { return }
+                self.onOcclusionChange?()
+            }
         })
         // active-Space changes are posted on NSWorkspace's own notification center, not the
         // default one. this is the reliable resume signal (window occlusion is not).

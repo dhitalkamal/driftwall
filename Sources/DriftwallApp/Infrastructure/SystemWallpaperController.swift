@@ -95,6 +95,17 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         persistSaved()
     }
 
+    // the largest pixel size across all displays; the stand-in never needs more than this.
+    private var maxDisplayPixelSize: CGSize {
+        var size = CGSize(width: 1920, height: 1080)
+        for screen in NSScreen.screens {
+            let scale = screen.backingScaleFactor
+            size.width = max(size.width, screen.frame.width * scale)
+            size.height = max(size.height, screen.frame.height * scale)
+        }
+        return size
+    }
+
     // a system image to restore to when the real original cannot be determined, so restore
     // never leaves one of our stand-ins as the wallpaper.
     private var safeFallbackWallpaper: URL? {
@@ -162,6 +173,9 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         guard let directory = supportDirectory else { return nil }
         let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
         generator.appliesPreferredTrackTransform = true
+        // the stand-in is only ever shown at display size, so don't decode/encode a full 4K
+        // still (a ~24MB transient bitmap + PNG encode) when a screen-sized frame will do.
+        generator.maximumSize = maxDisplayPixelSize
         do {
             let frame = try await generator.image(at: CMTime(seconds: 0.1, preferredTimescale: 600))
             let rep = NSBitmapImageRep(cgImage: frame.image)
