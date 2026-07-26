@@ -113,11 +113,15 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         guard currentURL != nil else { return }
         for window in windows {
             window.orderFront(nil)
-            window.playerView.rebuildPlayerLayer()
-            // re-assert appearance after the swap: a freshly rebuilt layer must not fall back to
-            // the default fill gravity, or Fit/Stretch is lost every time you return to a Space.
-            window.playerView.setFitMode(currentFitMode)
-            window.playerView.setDim(currentDim)
+            // when showing on all Spaces the windows never leave the active Space, so their GPU
+            // surfaces are not reclaimed; rebuilding the layer there is pure churn and briefly
+            // detaches the player. only rebuild (and re-assert appearance, since a fresh layer
+            // defaults to fill) when windows actually go off-Space and can return frozen/black.
+            if !currentShowOnAllSpaces {
+                window.playerView.rebuildPlayerLayer()
+                window.playerView.setFitMode(currentFitMode)
+                window.playerView.setDim(currentDim)
+            }
         }
         looper.forceCurrentFrame()
     }

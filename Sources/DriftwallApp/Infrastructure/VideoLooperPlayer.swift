@@ -16,6 +16,7 @@ final class VideoLooperPlayer {
     private var currentURL: URL?
     private var isPlaying = false
     private var desiredRate: Float = 1.0
+    private var desiredVolume: Double = 0
 
     private var watchdog: Timer?
     private var stalledSamples = 0
@@ -36,8 +37,11 @@ final class VideoLooperPlayer {
         // so re-apply the desired speed whenever the current item changes.
         currentItemObservation = player.observe(\.currentItem) { [weak self] player, _ in
             MainActor.assumeIsolated {
-                guard let self, self.isPlaying, player.currentItem != nil else { return }
-                player.rate = self.desiredRate
+                guard let self, let item = player.currentItem else { return }
+                if self.isPlaying { player.rate = self.desiredRate }
+                // the looper swaps in a fresh item copy each loop; re-apply audio selection so a
+                // muted wallpaper never decodes audio on the new item.
+                self.applyAudioSelection(to: item)
             }
         }
     }
@@ -69,8 +73,19 @@ final class VideoLooperPlayer {
 
     func setVolume(_ volume: Double) {
         let clamped = min(1, max(0, volume))
+        desiredVolume = clamped
         player.volume = Float(clamped)
         player.isMuted = clamped <= 0
+        if let item = player.currentItem { applyAudioSelection(to: item) }
+    }
+
+    // disable the audio track entirely while muted so AVFoundation does not decode audio for a
+    // silent wallpaper (the common case); re-enable it when the user raises the volume.
+    private func applyAudioSelection(to item: AVPlayerItem) {
+        let audible = desiredVolume > 0
+        for track in item.tracks where track.assetTrack?.mediaType == .audio {
+            track.isEnabled = audible
+        }
     }
 
     func setSpeed(_ rate: Double) {
