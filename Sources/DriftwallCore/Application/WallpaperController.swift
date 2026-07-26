@@ -84,6 +84,7 @@ public final class WallpaperController {
         config.fitMode = mode
         store.save(config)
         renderer.setFitMode(mode)
+        systemWallpaper.setFitMode(mode)
     }
 
     public func setPlaybackSettings(_ settings: PlaybackSettings) {
@@ -215,7 +216,8 @@ public final class WallpaperController {
             isShowing = false
             setPlaybackState(.idle)
         }
-        // let the system-wallpaper stand-in match the current video before taking over.
+        // let the system-wallpaper stand-in match the current video and fit before taking over.
+        systemWallpaper.setFitMode(config.fitMode)
         systemWallpaper.setStandIn(forVideo: isShowing ? url : nil)
         syncSystemWallpaper()
     }

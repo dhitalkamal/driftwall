@@ -44,6 +44,9 @@ public protocol SystemWallpaperControlling: AnyObject {
     // the desktop stand-in (seamless Space transitions) instead of solid black. pass nil when
     // no video is shown.
     func setStandIn(forVideo url: URL?)
+    // match the desktop stand-in's scaling to the video's fit mode, so a Space transition that
+    // reveals the stand-in keeps the same framing (Fit stays letterboxed, not cropped to fill).
+    func setFitMode(_ mode: FitMode)
     func takeOver()
     func restore()
 }
@@ -54,6 +57,7 @@ public protocol SystemWallpaperControlling: AnyObject {
 public final class NoopSystemWallpaper: SystemWallpaperControlling {
     public init() {}
     public func setStandIn(forVideo url: URL?) {}
+    public func setFitMode(_ mode: FitMode) {}
     public func takeOver() {}
     public func restore() {}
 }

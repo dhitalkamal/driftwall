@@ -19,12 +19,11 @@ func runPlaybackPolicyTests(_ t: TestRunner) {
     noVideo.hasVideo = false
     t.expectEqual(PlaybackPolicy(pauseOnBattery: true).decide(noVideo), .pause)
 
-    // occlusion no longer pauses: macOS does not reliably signal when a desktop-level window
-    // becomes visible again after a Space switch, so pausing on occlusion strands the video
-    // paused (and a long-off-screen paused layer renders black). we keep playing instead.
+    // pauses when hidden. the app debounces occlusion (and forces visible on a Space change)
+    // before setting isOccluded, so this only fires for sustained occlusion, not a brief switch.
     var occluded = clearConditions()
     occluded.isOccluded = true
-    t.expectEqual(PlaybackPolicy(pauseOnBattery: true).decide(occluded), .play)
+    t.expectEqual(PlaybackPolicy(pauseOnBattery: true).decide(occluded), .pause)
 
     // pauses when a fullscreen app is frontmost.
     var fullscreen = clearConditions()

@@ -22,6 +22,30 @@ final class SystemWallpaperController: SystemWallpaperControlling {
     // the video's frame instead of solid black. falls back to blackout until it is ready.
     private var standInURL: URL?
     private var posterVideoURL: URL?
+    private var fitMode: FitMode = .fill
+
+    func setFitMode(_ mode: FitMode) {
+        guard mode != fitMode else { return }
+        fitMode = mode
+        reapplyStandIn()  // re-scale the stand-in already on screen to the new fit mode.
+    }
+
+    // desktop-picture scaling that mirrors the video's fit mode, so revealing the stand-in
+    // during a Space transition keeps the same framing (Fit stays letterboxed on black).
+    private func desktopOptions() -> [NSWorkspace.DesktopImageOptionKey: Any] {
+        switch fitMode {
+        case .fill:
+            return [.imageScaling: NSImageScaling.scaleProportionallyUpOrDown.rawValue,
+                    .allowClipping: true]
+        case .fit:
+            return [.imageScaling: NSImageScaling.scaleProportionallyUpOrDown.rawValue,
+                    .allowClipping: false,
+                    .fillColor: NSColor.black]
+        case .stretch:
+            return [.imageScaling: NSImageScaling.scaleAxesIndependently.rawValue,
+                    .allowClipping: true]
+        }
+    }
 
     // the image to place behind our video: the video poster frame if ready, else solid black.
     private func currentStandIn() -> URL? {
@@ -52,18 +76,30 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         for screen in NSScreen.screens {
             guard let id = displayID(for: screen) else { continue }
             if saved[id] == nil {
-                // desktopImageURL is nullable and may return one of our own stand-in images
-                // (e.g. left by a crash). in either case do not take over this display: we
-                // would have no valid original to restore.
-                guard let current = NSWorkspace.shared.desktopImageURL(for: screen),
-                      !isOurImage(current) else {
+                // capture the real wallpaper to restore later. if the current picture is
+                // already one of ours (e.g. a prior run was force-killed before restoring),
+                // the real original is unknown; restore to a safe system image instead of
+                // stranding our stand-in as the permanent wallpaper. if even that is missing,
+                // leave this display untouched rather than risk a stuck stand-in.
+                let current = NSWorkspace.shared.desktopImageURL(for: screen)
+                if let current, !isOurImage(current) {
+                    saved[id] = current
+                } else if let fallback = safeFallbackWallpaper {
+                    saved[id] = fallback
+                } else {
                     continue
                 }
-                saved[id] = current
             }
             setDesktopImage(standIn, for: screen)
         }
         persistSaved()
+    }
+
+    // a system image to restore to when the real original cannot be determined, so restore
+    // never leaves one of our stand-ins as the wallpaper.
+    private var safeFallbackWallpaper: URL? {
+        let url = URL(fileURLWithPath: "/System/Library/Desktop Pictures/Solid Colors/Black.png")
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
     // re-apply the current stand-in to displays we have already taken over (used when the
@@ -100,7 +136,7 @@ final class SystemWallpaperController: SystemWallpaperControlling {
 
     private func setDesktopImage(_ url: URL, for screen: NSScreen) {
         do {
-            try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: [:])
+            try NSWorkspace.shared.setDesktopImageURL(url, for: screen, options: desktopOptions())
         } catch {
             FileHandle.standardError.write(
                 Data("Driftwall: failed to set desktop image: \(error)\n".utf8)

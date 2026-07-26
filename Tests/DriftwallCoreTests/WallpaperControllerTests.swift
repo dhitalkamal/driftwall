@@ -42,6 +42,7 @@ private final class FakeSystemWallpaper: SystemWallpaperControlling {
     var restoreCount = 0
     var standInVideos: [URL?] = []
     func setStandIn(forVideo url: URL?) { standInVideos.append(url) }
+    func setFitMode(_ mode: FitMode) {}
     func takeOver() { takeOverCount += 1 }
     func restore() { restoreCount += 1 }
 }
@@ -115,7 +116,8 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(primed, .playing)
     }
 
-    // occlusion no longer pauses playback (it strands the video paused/black on Space return).
+    // sustained occlusion pauses playback to save power (the app debounces this signal so a
+    // brief switch-time occlusion never reaches here).
     do {
         let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
         let renderer = FakeRenderer()
@@ -123,7 +125,7 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         controller.start(environment: clearEnv)
         controller.updateEnvironment(EnvironmentSignals(
             isOccluded: true, isFullscreenAppFrontmost: false, isOnBattery: false))
-        t.expectEqual(renderer.lastCommand, "play")
+        t.expectEqual(renderer.lastCommand, "pause")
     }
 
     // toggling pause-on-battery off keeps playing while on battery; on pauses.

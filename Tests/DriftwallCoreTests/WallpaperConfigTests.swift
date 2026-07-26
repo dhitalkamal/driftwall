@@ -13,7 +13,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
     t.expect(defaults.playlist == nil, "no playlist by default")
     t.expect(defaults.perDisplayVideos.isEmpty, "no per-display overrides by default")
     t.expectEqual(defaults.playbackSettings, PlaybackSettings())
-    // by default we take over the system wallpaper so macOS animates nothing behind us.
+    // by default we take over the system wallpaper with a still stand-in so a Space switch
+    // reveals a matching frame instead of a different desktop picture.
     t.expectEqual(defaults.replaceSystemWallpaper, true)
     // by default the wallpaper shows on every Space.
     t.expectEqual(defaults.showOnAllSpaces, true)

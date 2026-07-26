@@ -12,8 +12,10 @@ DEST="/Applications/$APP_NAME.app"
 # build the bundle (release, ad-hoc signed for local use unless DEVELOPER_ID_IDENTITY is set).
 "$ROOT/scripts/build_app.sh"
 
-# quit a running instance so the bundle can be replaced cleanly (restores the user's wallpaper).
+# quit any running instance so the bundle can be replaced cleanly and no stale copy keeps
+# rendering. covers both the bundled app ("Driftwall") and dev/test builds ("DriftwallApp").
 pkill -x "$APP_NAME" 2>/dev/null || true
+pkill -x "${PRODUCT_NAME:-DriftwallApp}" 2>/dev/null || true
 
 echo "installing to $DEST"
 rm -rf "$DEST"

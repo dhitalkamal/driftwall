@@ -17,12 +17,18 @@ final class PlayerView: NSView {
 
     func bind(to player: AVPlayer) {
         wantsLayer = true
+        // opaque black base so nothing behind the view (the static desktop picture) ever shows
+        // through — letterbox bars in fit mode and the moment before the first frame stay black.
+        layer?.backgroundColor = NSColor.black.cgColor
+        layer?.isOpaque = true
         boundPlayer = player
         dimLayer.backgroundColor = NSColor.black.cgColor
         rebuildPlayerLayer()
     }
 
     // install a fresh AVPlayerLayer surface, preserving fit and dim. safe to call repeatedly.
+    // exactly one AVPlayerLayer is bound to the player at a time: two layers sharing one player
+    // do not both render, which stranded a stale layer on screen.
     func rebuildPlayerLayer() {
         guard let hostLayer = layer else { return }
         playerLayer?.removeFromSuperlayer()
@@ -82,8 +88,11 @@ final class WallpaperWindow: NSWindow {
         // desktopWindow level sits above the static desktop picture but below the icons.
         level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopWindow)))
         setShowOnAllSpaces(showOnAllSpaces)
-        isOpaque = false
-        backgroundColor = .clear
+        // opaque black so the window fully occludes the static desktop picture and becomes the
+        // wallpaper. a clear window only floats video over the static wallpaper, which shows
+        // through any area the video does not paint (letterbox, pre-first-frame, layer rebuild).
+        isOpaque = true
+        backgroundColor = .black
         hasShadow = false
         ignoresMouseEvents = true
         hidesOnDeactivate = false

@@ -96,12 +96,6 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         }
     }
 
-    // a compact snapshot of window + player state for the diagnostics log.
-    var diagnostic: String {
-        let anyVisible = windows.contains { $0.occlusionState.contains(.visible) }
-        return "windows=\(windows.count) anyVisible=\(anyVisible) \(looper.diagnostic)"
-    }
-
     // called on Space return: install fresh AVPlayerLayer surfaces (the old ones stop
     // compositing after being off a non-active Space, leaving a frozen frame) and force a
     // fresh frame from the still-playing player.
@@ -110,6 +104,10 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         for window in windows {
             window.orderFront(nil)
             window.playerView.rebuildPlayerLayer()
+            // re-assert appearance after the swap: a freshly rebuilt layer must not fall back to
+            // the default fill gravity, or Fit/Stretch is lost every time you return to a Space.
+            window.playerView.setFitMode(currentFitMode)
+            window.playerView.setDim(currentDim)
         }
         looper.forceCurrentFrame()
     }

@@ -1,4 +1,5 @@
 import AVFoundation
+import AppKit
 
 // wraps an AVQueuePlayer + AVPlayerLooper for gapless looping. the looper must be retained
 // or looping silently stops, so it is held in a strong property. exposes the underlying
@@ -45,6 +46,10 @@ final class VideoLooperPlayer {
 
     private func buildPipeline(for url: URL) {
         let item = AVPlayerItem(url: url)
+        // decode no larger than the displays can show. a 4K clip on a 1512x982@2x screen only
+        // needs ~3024x1964 pixels; capping here cuts decode CPU/GPU and memory with no visible
+        // change, which matters a lot for a wallpaper that plays continuously.
+        item.preferredMaximumResolution = maxDisplayPixelSize
         // surface a load failure (unsupported codec, corrupt, unreadable) instead of leaving
         // a silent transparent window.
         statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
@@ -83,14 +88,17 @@ final class VideoLooperPlayer {
         player.pause()
     }
 
-    // force the layer to present a fresh frame without restarting the video: a zero-tolerance
-    // seek to the current time repaints a surface that was reclaimed while off-screen.
+    // present a fresh frame on a layer whose surface was reclaimed while off a non-active Space.
+    // a live (playing) player feeds a freshly rebuilt layer on its own within a frame, so just
+    // (re)assert playback. only a paused player needs a nudge, and it uses a default-tolerance
+    // seek: a zero-tolerance seek re-decodes precisely from the keyframe and can stall ~1-2s on
+    // 4K footage — that stall was the visible "stuck for a second" on Space return.
     func forceCurrentFrame() {
         guard currentURL != nil else { return }
-        let now = player.currentTime()
-        player.seek(to: now, toleranceBefore: .zero, toleranceAfter: .zero)
         if isPlaying {
             player.playImmediately(atRate: desiredRate)
+        } else {
+            player.seek(to: player.currentTime())
         }
     }
 
@@ -103,10 +111,16 @@ final class VideoLooperPlayer {
         currentURL = nil
     }
 
-    // a compact snapshot of player state for the diagnostics log.
-    var diagnostic: String {
-        "timeControl=\(player.timeControlStatus.rawValue) rate=\(player.rate) "
-            + "t=\(String(format: "%.2f", player.currentTime().seconds)) hasItem=\(player.currentItem != nil)"
+    // the largest pixel size across all displays; decoding above this wastes work for a
+    // wallpaper. floors at 1080p so an unusual display report never starves quality.
+    private var maxDisplayPixelSize: CGSize {
+        var size = CGSize(width: 1920, height: 1080)
+        for screen in NSScreen.screens {
+            let scale = screen.backingScaleFactor
+            size.width = max(size.width, screen.frame.width * scale)
+            size.height = max(size.height, screen.frame.height * scale)
+        }
+        return size
     }
 
     // sample playback every few seconds; if we expect it to be playing but the player is not

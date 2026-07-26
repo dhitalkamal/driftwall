@@ -1,9 +1,8 @@
 import AppKit
 import DriftwallCore
 
-// wires the infrastructure adapters to the core controller, restores the saved license,
-// presents the preferences window, and keeps the environment signals in sync with power and
-// occlusion changes.
+// wires the infrastructure adapters to the core controller, presents the preferences window,
+// and keeps the environment signals in sync with power and occlusion changes.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let power = PowerMonitor()
@@ -13,13 +12,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menu = StatusMenuController()
     private var controller: WallpaperController?
     private var preferences: PreferencesWindowController?
-    private var heartbeat: Timer?
     private var rotationTimer: Timer?
+    private var activity: NSObjectProtocol?
+    private var occlusionDebounce: Timer?
+    // debounced "the wallpaper is genuinely not visible": true only after sustained occlusion,
+    // so a brief occlusion during a Space switch never pauses (which would strand a frame).
+    private var effectivelyHidden = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // agent app: live in the menu bar, no dock icon or main window.
         NSApp.setActivationPolicy(.accessory)
         Diagnostics.log("launch")
+        // keep decoding/compositing the wallpaper even when it is off the active Space or
+        // occluded; otherwise App Nap throttles rendering and the video is stale for a beat on
+        // Space return. allows normal idle system sleep, so it does not keep the Mac awake.
+        activity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep],
+            reason: "Continuously rendering the live wallpaper across Spaces"
+        )
         // install a main menu so Cmd+V and other editing shortcuts work in text fields.
         MainMenu.install()
 
@@ -54,21 +64,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             alert.runModal()
         }
         power.onChange = { [weak self] in self?.syncEnvironment() }
-        wallpaper.onOcclusionChange = { [weak self] in
-            Diagnostics.log("occlusionChange: \(self?.wallpaper.diagnostic ?? "-")")
-            self?.syncEnvironment()
-        }
+        wallpaper.onOcclusionChange = { [weak self] in self?.handleOcclusionChange() }
         wallpaper.onScreensChange = { [weak self] in self?.controller?.handleScreensChanged() }
         wallpaper.onSpaceChange = { [weak self] in
             guard let self else { return }
-            Diagnostics.log("spaceChange BEFORE: \(self.wallpaper.diagnostic)")
+            // a Space change means visibility is about to flip; assume visible and cancel any
+            // pending hide so we never resume into a paused (black) frame. occlusion re-evaluates
+            // from scratch afterward and can re-pause if the new Space still hides the wallpaper.
+            self.occlusionDebounce?.invalidate()
+            self.occlusionDebounce = nil
+            self.effectivelyHidden = false
             self.controller?.handleSpaceChanged()
-            Diagnostics.log("spaceChange AFTER: \(self.wallpaper.diagnostic)")
         }
         power.start()
 
         controller.start(environment: currentEnvironment())
-        startHeartbeat()
 
         // no video yet: open preferences so the user can pick one.
         if !controller.config.hasVideo {
@@ -94,24 +104,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rotationTimer = timer
     }
 
-    // periodic state snapshot so the diagnostics log always has a recent picture at the moment
-    // a black is observed.
-    private func startHeartbeat() {
-        let timer = Timer(timeInterval: 3, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                Diagnostics.log("heartbeat: \(self.wallpaper.diagnostic)")
+    // occlusion changes constantly during Space switches, so debounce before treating the
+    // wallpaper as hidden: pause 4K decode only after it has been continuously covered for a
+    // while (saves power under a fullscreen app or maximized window), and resume instantly the
+    // moment it becomes visible again. brief switch-time occlusion never trips the pause.
+    private func handleOcclusionChange() {
+        occlusionDebounce?.invalidate()
+        occlusionDebounce = nil
+        if wallpaper.isOccluded {
+            let timer = Timer(timeInterval: 8, repeats: false) { [weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self, self.wallpaper.isOccluded else { return }
+                    self.effectivelyHidden = true
+                    self.syncEnvironment()
+                }
             }
+            RunLoop.main.add(timer, forMode: .common)
+            occlusionDebounce = timer
+        } else if effectivelyHidden {
+            effectivelyHidden = false
+            syncEnvironment()
         }
-        RunLoop.main.add(timer, forMode: .common)
-        heartbeat = timer
     }
 
     private func currentEnvironment() -> EnvironmentSignals {
-        // occlusion already covers a frontmost fullscreen app (it fully covers the wallpaper
-        // window), so the dedicated fullscreen signal stays false for now.
         EnvironmentSignals(
-            isOccluded: wallpaper.isOccluded,
+            isOccluded: effectivelyHidden,
             isFullscreenAppFrontmost: false,
             isOnBattery: power.isOnBattery
         )
