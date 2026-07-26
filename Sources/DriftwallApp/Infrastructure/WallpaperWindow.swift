@@ -9,6 +9,10 @@ import DriftwallCore
 // the still-playing player, which composites live video again.
 final class PlayerView: NSView {
     private var playerLayer: AVPlayerLayer?
+    // a blurred, fill-scaled still of the video behind the player layer, so Fit-mode letterbox
+    // areas show a soft blur instead of black bars. static (a still), which reads fine because
+    // the blur hides motion; falls back to the black base when no image is set.
+    private let backgroundLayer = CALayer()
     private let dimLayer = CALayer()
     private weak var boundPlayer: AVPlayer?
     private var gravity: AVLayerVideoGravity = .resizeAspectFill
@@ -21,9 +25,19 @@ final class PlayerView: NSView {
         // through — letterbox bars in fit mode and the moment before the first frame stay black.
         layer?.backgroundColor = NSColor.black.cgColor
         layer?.isOpaque = true
+        backgroundLayer.backgroundColor = NSColor.black.cgColor
+        backgroundLayer.contentsGravity = .resizeAspectFill
+        backgroundLayer.masksToBounds = true
+        backgroundLayer.frame = bounds
+        layer?.addSublayer(backgroundLayer)  // stays at the bottom; player/dim rebuild above it
         boundPlayer = player
         dimLayer.backgroundColor = NSColor.black.cgColor
         rebuildPlayerLayer()
+    }
+
+    // set the blurred fill still shown behind a letterboxed video. nil clears it (back to black).
+    func setBackgroundImage(_ image: CGImage?) {
+        backgroundLayer.contents = image
     }
 
     // install a fresh AVPlayerLayer surface, preserving fit and dim. safe to call repeatedly.
@@ -56,7 +70,8 @@ final class PlayerView: NSView {
 
     override func layout() {
         super.layout()
-        // keep the video and dim layers covering the whole view as it resizes.
+        // keep the background, video, and dim layers covering the whole view as it resizes.
+        backgroundLayer.frame = bounds
         playerLayer?.frame = bounds
         dimLayer.frame = bounds
     }

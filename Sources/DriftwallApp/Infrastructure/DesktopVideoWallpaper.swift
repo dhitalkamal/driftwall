@@ -1,4 +1,6 @@
 import AppKit
+import AVFoundation
+import CoreImage
 import DriftwallCore
 
 // implements the WallpaperRendering port with AppKit: one borderless desktop-level window per
@@ -14,6 +16,13 @@ final class DesktopVideoWallpaper: WallpaperRendering {
     private var currentShowOnAllSpaces = true
     private var rebuildWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
+    // blurred fill still shown behind a letterboxed (Fit) video, and the video it was made from.
+    private var currentBlur: CGImage?
+    private var blurSourceURL: URL?
+
+    // CGImage is immutable/thread-safe; box it to carry across the actor boundary from the
+    // background generation task without a Sendable warning.
+    private struct SendableCGImage: @unchecked Sendable { let image: CGImage }
 
     // invoked (on the main thread) whenever a window's occlusion state changes.
     var onOcclusionChange: (@MainActor () -> Void)?
@@ -74,6 +83,47 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         currentURL = url
         looper.load(url: url)
         rebuildWindows()
+        refreshBlurBackground(for: url)
+    }
+
+    // (re)generate the blurred fill still when the video changes, and apply it to the windows.
+    private func refreshBlurBackground(for url: URL) {
+        guard blurSourceURL != url else {
+            applyBlurToWindows()
+            return
+        }
+        blurSourceURL = url
+        currentBlur = nil
+        applyBlurToWindows()  // clear to black while the new blur generates
+        Task {
+            let result = await Self.generateBlur(for: url)
+            await MainActor.run { [weak self] in
+                guard let self, self.blurSourceURL == url else { return }
+                self.currentBlur = result?.image
+                self.applyBlurToWindows()
+            }
+        }
+    }
+
+    private func applyBlurToWindows() {
+        for window in windows { window.playerView.setBackgroundImage(currentBlur) }
+    }
+
+    // extract a small early frame and heavily blur it. the source is capped small because the
+    // blur destroys detail anyway, keeping this one-shot per-video cost cheap.
+    private nonisolated static func generateBlur(for url: URL) async -> SendableCGImage? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 640, height: 640)
+        guard let frame = try? await generator.image(at: CMTime(seconds: 0.1, preferredTimescale: 600)) else {
+            return nil
+        }
+        let source = CIImage(cgImage: frame.image)
+        let blurred = source.clampedToExtent()
+            .applyingGaussianBlur(sigma: 24)
+            .cropped(to: source.extent)
+        guard let cg = CIContext().createCGImage(blurred, from: source.extent) else { return nil }
+        return SendableCGImage(image: cg)
     }
 
     func play() {
@@ -143,6 +193,8 @@ final class DesktopVideoWallpaper: WallpaperRendering {
         windows.removeAll()
         looper.teardown()
         currentURL = nil
+        currentBlur = nil
+        blurSourceURL = nil
     }
 
     // coalesce bursts of screen-parameter notifications into a single rebuild.
@@ -168,6 +220,7 @@ final class DesktopVideoWallpaper: WallpaperRendering {
             window.playerView.bind(to: looper.player)
             window.playerView.setFitMode(currentFitMode)
             window.playerView.setDim(currentDim)
+            window.playerView.setBackgroundImage(currentBlur)
             window.orderFront(nil)
             return window
         }
