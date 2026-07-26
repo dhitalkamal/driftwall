@@ -1,4 +1,5 @@
 import AppKit
+import AVFoundation
 import UniformTypeIdentifiers
 import DriftwallCore
 
@@ -21,6 +22,7 @@ final class PreferencesModel: ObservableObject {
     @Published var replaceSystemWallpaper: Bool
     @Published var showOnAllSpaces: Bool
     @Published var launchAtLogin: Bool
+    @Published var previewImage: NSImage?
 
     init(controller: WallpaperController) {
         self.controller = controller
@@ -38,6 +40,33 @@ final class PreferencesModel: ObservableObject {
         replaceSystemWallpaper = config.replaceSystemWallpaper
         showOnAllSpaces = config.showOnAllSpaces
         launchAtLogin = LaunchAtLoginService.isEnabled
+        refreshPreview()
+    }
+
+    // a still thumbnail of the current video, shown in the Wallpaper section.
+    private struct Thumb: @unchecked Sendable { let cg: CGImage }
+
+    private func refreshPreview() {
+        guard let url = controller.config.selectedVideo else {
+            previewImage = nil
+            return
+        }
+        Task { [weak self] in
+            let thumb = await Self.thumbnail(for: url)
+            await MainActor.run {
+                self?.previewImage = thumb.map { NSImage(cgImage: $0.cg, size: .zero) }
+            }
+        }
+    }
+
+    private nonisolated static func thumbnail(for url: URL) async -> Thumb? {
+        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 640, height: 400)
+        guard let frame = try? await generator.image(at: CMTime(seconds: 0.1, preferredTimescale: 600)) else {
+            return nil
+        }
+        return Thumb(cg: frame.image)
     }
 
     var appVersion: String {
@@ -57,12 +86,14 @@ final class PreferencesModel: ObservableObject {
         if panel.runModal() == .OK, let url = panel.url {
             controller.selectVideo(url)
             selectedVideoName = url.lastPathComponent
+            refreshPreview()
         }
     }
 
     func removeWallpaper() {
         controller.clearVideo()
         selectedVideoName = "None"
+        previewImage = nil
     }
 
     func updateFitMode(_ mode: FitMode) {
