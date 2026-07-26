@@ -17,10 +17,7 @@ final class StatusMenuController: NSObject {
 
     private func configure() {
         if let button = statusItem.button {
-            button.image = NSImage(
-                systemSymbolName: "menubar.dock.rectangle",
-                accessibilityDescription: "Driftwall"
-            )
+            button.image = MenuBarIcon.make(active: false)
         }
 
         let menu = NSMenu()
@@ -46,6 +43,11 @@ final class StatusMenuController: NSObject {
         menu.addItem(quit)
 
         statusItem.menu = menu
+    }
+
+    // reflect playback state in the menu-bar glyph: solid when playing, dimmed otherwise.
+    func setPlaying(_ playing: Bool) {
+        statusItem.button?.image = MenuBarIcon.make(active: playing)
     }
 
     @objc private func chooseVideo() {

@@ -32,12 +32,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.controller = controller
         controller.onRotationScheduleChanged = { [weak self] in self?.rescheduleRotation() }
 
-        // restore the license tier from any stored, still-valid token.
-        if let token = controller.config.licenseToken,
-           let claims = LicenseVerifier.verify(token: token) {
-            controller.setTier(claims.tier)
-        }
-
         let model = PreferencesModel(controller: controller)
         let preferences = PreferencesWindowController(model: model)
         self.preferences = preferences
@@ -47,6 +41,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         menu.onOpenPreferences = { [weak preferences] in
             preferences?.show()
+        }
+        controller.onPlaybackStateChanged = { [weak self] state in
+            self?.menu.setPlaying(state == .playing)
         }
 
         wallpaper.onLoadFailure = { message in

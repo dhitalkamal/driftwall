@@ -2,8 +2,7 @@ import AppKit
 
 // builds the application main menu. an agent app has no visible menu bar, but macOS still
 // dispatches keyboard shortcuts (Cmd+V, Cmd+C, Cmd+A, Cmd+Q) through NSApp.mainMenu. without
-// it, standard editing shortcuts never reach text fields, so pasting a license key silently
-// does nothing.
+// it, standard editing shortcuts never reach text fields in the preferences window.
 @MainActor
 enum MainMenu {
     static func install() {

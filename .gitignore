@@ -13,3 +13,6 @@ dist/
 
 # macos
 .DS_Store
+
+# claude code agent workspace (worktrees, settings)
+.claude/

@@ -4,18 +4,16 @@ import Foundation
 // and stays free of any AppKit/AVFoundation dependency. decoding tolerates older files that
 // predate newer fields by falling back to defaults, so upgrades never wipe a user's setup.
 public struct WallpaperConfig: Codable, Equatable, Sendable {
-    // free: a single video applied to every display.
+    // a single video applied to every display.
     public var selectedVideo: URL?
-    // pro: a distinct video per display, keyed by a stable display id.
+    // a distinct video per display, keyed by a stable display id.
     public var perDisplayVideos: [String: URL]
     public var fitMode: FitMode
-    // pro: rotate through a set of videos when enabled.
+    // rotate through a set of videos when enabled.
     public var playlist: Playlist?
     public var playlistEnabled: Bool
     public var playbackSettings: PlaybackSettings
     public var pauseOnBattery: Bool
-    // the raw signed license token, verified in the app layer to derive the tier.
-    public var licenseToken: String?
     // when true, take over the macOS desktop picture while active so the system animates
     // nothing behind our video, restoring it on quit.
     public var replaceSystemWallpaper: Bool
@@ -31,7 +29,6 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         playlistEnabled: Bool = false,
         playbackSettings: PlaybackSettings = PlaybackSettings(),
         pauseOnBattery: Bool = true,
-        licenseToken: String? = nil,
         replaceSystemWallpaper: Bool = true,
         showOnAllSpaces: Bool = true
     ) {
@@ -42,7 +39,6 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         self.playlistEnabled = playlistEnabled
         self.playbackSettings = playbackSettings
         self.pauseOnBattery = pauseOnBattery
-        self.licenseToken = licenseToken
         self.replaceSystemWallpaper = replaceSystemWallpaper
         self.showOnAllSpaces = showOnAllSpaces
     }
@@ -57,7 +53,6 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
             playlistEnabled: try c.decodeIfPresent(Bool.self, forKey: .playlistEnabled) ?? false,
             playbackSettings: try c.decodeIfPresent(PlaybackSettings.self, forKey: .playbackSettings) ?? PlaybackSettings(),
             pauseOnBattery: try c.decodeIfPresent(Bool.self, forKey: .pauseOnBattery) ?? true,
-            licenseToken: try c.decodeIfPresent(String.self, forKey: .licenseToken),
             replaceSystemWallpaper: try c.decodeIfPresent(Bool.self, forKey: .replaceSystemWallpaper) ?? true,
             showOnAllSpaces: try c.decodeIfPresent(Bool.self, forKey: .showOnAllSpaces) ?? true
         )

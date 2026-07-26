@@ -89,6 +89,32 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(renderer.lastCommand, "play")
     }
 
+    // the playback-state callback reflects playing, paused, and idle for the menu-bar icon.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo, pauseOnBattery: true))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        var states: [PlaybackState] = []
+        controller.onPlaybackStateChanged = { states.append($0) }
+        controller.start(environment: clearEnv)
+        controller.updateEnvironment(EnvironmentSignals(
+            isOccluded: false, isFullscreenAppFrontmost: false, isOnBattery: true))
+        controller.clearVideo()
+        t.expectEqual(states, [.playing, .paused, .idle])
+    }
+
+    // attaching the state observer after playback is already decided primes it immediately, so
+    // the menu-bar icon reflects reality even when playback was decided before it was wired up.
+    do {
+        let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
+        let renderer = FakeRenderer()
+        let controller = WallpaperController(store: store, renderer: renderer)
+        controller.start(environment: clearEnv)
+        var primed: PlaybackState?
+        controller.onPlaybackStateChanged = { primed = $0 }
+        t.expectEqual(primed, .playing)
+    }
+
     // occlusion no longer pauses playback (it strands the video paused/black on Space return).
     do {
         let store = FakeStore(WallpaperConfig(selectedVideo: sampleVideo))
@@ -284,7 +310,7 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         }
     }
 
-    // pro playlist rotates through its videos in order as it advances.
+    // an enabled playlist rotates through its videos in order as it advances.
     do {
         let v0 = URL(fileURLWithPath: "/tmp/p0.mp4")
         let v1 = URL(fileURLWithPath: "/tmp/p1.mp4")
@@ -295,7 +321,6 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         let store = FakeStore(config)
         let renderer = FakeRenderer()
         let controller = WallpaperController(store: store, renderer: renderer)
-        controller.setTier(.pro)
         controller.start(environment: clearEnv)
         t.expectEqual(renderer.lastShown, v0)
         controller.advancePlaylist()
@@ -305,31 +330,27 @@ func runWallpaperControllerTests(_ t: TestRunner) {
         t.expectEqual(controller.rotationIntervalSeconds, 60)
     }
 
-    // free tier: playlist rotation is inactive (no interval) and advancing does nothing.
+    // rotation stays inactive for a single-video playlist (nothing to rotate through).
     do {
         let v0 = URL(fileURLWithPath: "/tmp/p0.mp4")
-        let v1 = URL(fileURLWithPath: "/tmp/p1.mp4")
         let config = WallpaperConfig(
-            selectedVideo: v0,
-            playlist: Playlist(videos: [v0, v1], shuffle: false, intervalSeconds: 60),
+            playlist: Playlist(videos: [v0], shuffle: false, intervalSeconds: 60),
             playlistEnabled: true
         )
         let store = FakeStore(config)
         let controller = WallpaperController(store: store, renderer: FakeRenderer())
-        controller.start(environment: clearEnv)   // free tier by default
-        t.expect(controller.rotationIntervalSeconds == nil, "free tier has no rotation")
+        controller.start(environment: clearEnv)
+        t.expect(controller.rotationIntervalSeconds == nil, "one-video playlist has no rotation")
     }
 
-    // playback speed is applied only for pro (free is pinned to 1.0).
+    // the configured playback speed is applied to the renderer.
     do {
         let store = FakeStore(WallpaperConfig(
             selectedVideo: sampleVideo,
             playbackSettings: PlaybackSettings(speed: 2.0)))
         let renderer = FakeRenderer()
         let controller = WallpaperController(store: store, renderer: renderer)
-        controller.start(environment: clearEnv)   // free
-        t.expectEqual(renderer.speed, 1.0)
-        controller.setTier(.pro)
+        controller.start(environment: clearEnv)
         t.expectEqual(renderer.speed, 2.0)
     }
 }

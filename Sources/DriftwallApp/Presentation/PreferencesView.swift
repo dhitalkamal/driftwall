@@ -1,8 +1,8 @@
 import SwiftUI
 import DriftwallCore
 
-// the preferences window, organized as tabs so every control (including license activation)
-// is always reachable without scrolling past the fold.
+// the preferences window, organized as tabs so every control is always reachable without
+// scrolling past the fold.
 struct PreferencesView: View {
     @ObservedObject var model: PreferencesModel
 
@@ -14,8 +14,6 @@ struct PreferencesView: View {
                 .tabItem { Label("Playback", systemImage: "slider.horizontal.3") }
             PlaylistTab(model: model)
                 .tabItem { Label("Playlist", systemImage: "list.and.film") }
-            ProTab(model: model)
-                .tabItem { Label("Pro", systemImage: "star") }
             AboutTab(model: model)
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
@@ -73,14 +71,8 @@ private struct PlaybackTab: View {
                 Slider(value: bind(\.speed), in: 0.25...2.0, step: 0.25) {
                     Text("Speed")
                 } minimumValueLabel: { Text("0.25x") } maximumValueLabel: { Text("2x") }
-                    .disabled(!model.isPro)
-                if model.isPro {
-                    Text(String(format: "%.2fx", model.speed))
-                        .font(.callout).foregroundStyle(.secondary)
-                } else {
-                    Text("Playback speed is a Pro feature. Activate Pro to unlock.")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
+                Text(String(format: "%.2fx", model.speed))
+                    .font(.callout).foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -99,23 +91,14 @@ private struct PlaylistTab: View {
 
     var body: some View {
         Form {
-            if !model.isPro {
-                Section {
-                    Text("Playlists are a Pro feature. Activate Pro on the Pro tab to rotate through multiple videos on a schedule.")
-                        .font(.callout).foregroundStyle(.secondary)
-                }
-            }
             Section("Playlist") {
                 Toggle("Rotate through a playlist", isOn: Binding(
                     get: { model.playlistEnabled }, set: { model.updatePlaylistEnabled($0) }))
-                    .disabled(!model.isPro)
                 Toggle("Shuffle", isOn: Binding(
                     get: { model.playlistShuffle }, set: { model.updatePlaylistShuffle($0) }))
-                    .disabled(!model.isPro)
                 Stepper("Rotate every \(model.playlistIntervalMinutes) min", value: Binding(
                     get: { model.playlistIntervalMinutes },
                     set: { model.updatePlaylistInterval($0) }), in: 1...240)
-                    .disabled(!model.isPro)
             }
             Section("Videos (\(model.playlistVideoNames.count))") {
                 ForEach(Array(model.playlistVideoNames.enumerated()), id: \.offset) { index, name in
@@ -123,46 +106,9 @@ private struct PlaylistTab: View {
                         Text(name).lineLimit(1).truncationMode(.middle)
                         Spacer()
                         Button("Remove") { model.removePlaylistVideo(at: index) }
-                            .disabled(!model.isPro)
                     }
                 }
                 Button("Add Videos...") { model.addPlaylistVideos() }
-                    .disabled(!model.isPro)
-            }
-        }
-        .formStyle(.grouped)
-    }
-}
-
-private struct ProTab: View {
-    @ObservedObject var model: PreferencesModel
-
-    var body: some View {
-        Form {
-            Section("Driftwall Pro") {
-                LabeledContent("Status", value: model.isPro ? "Pro" : "Free")
-                Text("Pro unlocks a different video per display, playlists with scheduled rotation, and (soon) Lock Screen video.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            }
-            Section(model.isPro ? "License" : "Activate") {
-                if model.isPro {
-                    Button("Deactivate license") { model.deactivateLicense() }
-                } else {
-                    TextField("Paste your license key", text: $model.licenseKeyInput, axis: .vertical)
-                        .lineLimit(2...4)
-                        .textFieldStyle(.roundedBorder)
-                    HStack {
-                        Button("Paste from Clipboard") { model.pasteLicenseFromClipboard() }
-                        Spacer()
-                        Button("Activate") { model.activateLicense() }
-                            .keyboardShortcut(.defaultAction)
-                            .disabled(model.licenseKeyInput.isEmpty)
-                    }
-                }
-                if !model.licenseMessage.isEmpty {
-                    Text(model.licenseMessage).font(.callout).foregroundStyle(.secondary)
-                }
             }
         }
         .formStyle(.grouped)

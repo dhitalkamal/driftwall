@@ -1,7 +1,7 @@
 import Foundation
 
-// orchestrates the wallpaper: owns the current config, the license tier, and the latest
-// environment signals, and drives the renderer through the playback policy. main-actor
+// orchestrates the wallpaper: owns the current config and the latest environment signals, and
+// drives the renderer through the playback policy. main-actor
 // isolated: it runs on the main thread and drives main-actor renderer/store adapters.
 @MainActor
 public final class WallpaperController {
@@ -10,7 +10,6 @@ public final class WallpaperController {
     private let systemWallpaper: SystemWallpaperControlling
 
     public private(set) var config: WallpaperConfig
-    public private(set) var tier: LicenseTier = .free
     private var environment: EnvironmentSignals
     private var isShowing = false
     private var didTakeOverSystemWallpaper = false
@@ -20,9 +19,20 @@ public final class WallpaperController {
     private var playlistOrder: [Int] = []
     private var playlistAdvance = 0
 
-    // fired when the rotation schedule may have changed (playlist edited, enabled, or tier
-    // changed) so the app can (re)schedule its rotation timer.
+    // fired when the rotation schedule may have changed (playlist edited or enabled) so the app
+    // can (re)schedule its rotation timer.
     public var onRotationScheduleChanged: (@MainActor () -> Void)?
+
+    // fired when the effective playback state changes so the app can reflect it (menu-bar icon).
+    // primes a newly attached observer with the current state, since playback may already be
+    // decided (e.g. license restore runs before the app wires this up) and the change-dedup
+    // below would otherwise swallow the first emission.
+    public var onPlaybackStateChanged: (@MainActor (PlaybackState) -> Void)? {
+        didSet {
+            if let lastPlaybackState { onPlaybackStateChanged?(lastPlaybackState) }
+        }
+    }
+    private var lastPlaybackState: PlaybackState?
 
     public init(
         store: ConfigStoring,
@@ -52,14 +62,6 @@ public final class WallpaperController {
         onRotationScheduleChanged?()
     }
 
-    // the license tier, derived by the app layer from a verified license.
-    public func setTier(_ tier: LicenseTier) {
-        self.tier = tier
-        refreshSurface()
-        applyPlayback()
-        onRotationScheduleChanged?()
-    }
-
     // user picked a new single video: persist it, show it, and re-evaluate playback.
     public func selectVideo(_ url: URL) {
         config.selectedVideo = url
@@ -78,13 +80,6 @@ public final class WallpaperController {
         onRotationScheduleChanged?()
     }
 
-    // store a verified license token and its tier (the app layer verifies the signature).
-    public func setLicense(token: String?, tier: LicenseTier) {
-        config.licenseToken = token
-        store.save(config)
-        setTier(tier)
-    }
-
     public func setFitMode(_ mode: FitMode) {
         config.fitMode = mode
         store.save(config)
@@ -96,7 +91,7 @@ public final class WallpaperController {
         store.save(config)
         renderer.setVolume(settings.volume)
         renderer.setDim(settings.dim)
-        renderer.setSpeed(effectiveSpeed)
+        renderer.setSpeed(config.playbackSettings.speed)
     }
 
     // pro: replace the playlist (videos, shuffle, interval). enabling is separate.
@@ -127,11 +122,10 @@ public final class WallpaperController {
         applyPlayback()
     }
 
-    // the rotation interval in seconds when rotation is active (pro, enabled, 2+ videos),
-    // otherwise nil (no timer should run).
+    // the rotation interval in seconds when rotation is active (enabled, 2+ videos), otherwise
+    // nil (no timer should run).
     public var rotationIntervalSeconds: Int? {
-        guard FeatureGate.isAllowed(.playlists, tier: tier),
-              config.playlistEnabled,
+        guard config.playlistEnabled,
               let playlist = config.playlist,
               playlist.videos.count >= 2 else {
             return nil
@@ -192,10 +186,6 @@ public final class WallpaperController {
         renderer.refresh()
     }
 
-    private var effectiveSpeed: Double {
-        FeatureGate.isAllowed(.playbackFX, tier: tier) ? config.playbackSettings.speed : 1.0
-    }
-
     private func regeneratePlaylistOrder() {
         playlistAdvance = 0
         let count = config.playlist?.videos.count ?? 0
@@ -208,7 +198,6 @@ public final class WallpaperController {
         let url = WallpaperResolver.video(
             for: primaryDisplayId,
             config: config,
-            tier: tier,
             playlistOrder: playlistOrder,
             playlistAdvance: playlistAdvance
         )
@@ -219,11 +208,12 @@ public final class WallpaperController {
             renderer.setFitMode(config.fitMode)
             renderer.setVolume(config.playbackSettings.volume)
             renderer.setDim(config.playbackSettings.dim)
-            renderer.setSpeed(effectiveSpeed)
+            renderer.setSpeed(config.playbackSettings.speed)
             isShowing = true
         } else {
             renderer.hide()
             isShowing = false
+            setPlaybackState(.idle)
         }
         // let the system-wallpaper stand-in match the current video before taking over.
         systemWallpaper.setStandIn(forVideo: isShowing ? url : nil)
@@ -248,7 +238,7 @@ public final class WallpaperController {
     private let primaryDisplayId = "primary"
 
     private func applyPlayback() {
-        guard isShowing else { return }
+        guard isShowing else { setPlaybackState(.idle); return }
         let conditions = PlaybackConditions(
             hasVideo: true,
             isOccluded: environment.isOccluded,
@@ -259,8 +249,16 @@ public final class WallpaperController {
         switch policy.decide(conditions) {
         case .play:
             renderer.play()
+            setPlaybackState(.playing)
         case .pause:
             renderer.pause()
+            setPlaybackState(.paused)
         }
+    }
+
+    private func setPlaybackState(_ state: PlaybackState) {
+        guard state != lastPlaybackState else { return }
+        lastPlaybackState = state
+        onPlaybackStateChanged?(state)
     }
 }

@@ -3,7 +3,7 @@ import DriftwallCore
 
 func runWallpaperConfigTests(_ t: TestRunner) {
     // a fresh config has no video, pauses on battery, fills the screen, no playlist, and no
-    // per-display overrides or license.
+    // per-display overrides.
     let defaults = WallpaperConfig()
     t.expectEqual(defaults.selectedVideo, nil)
     t.expectEqual(defaults.pauseOnBattery, true)
@@ -12,7 +12,6 @@ func runWallpaperConfigTests(_ t: TestRunner) {
     t.expectEqual(defaults.playlistEnabled, false)
     t.expect(defaults.playlist == nil, "no playlist by default")
     t.expect(defaults.perDisplayVideos.isEmpty, "no per-display overrides by default")
-    t.expect(defaults.licenseToken == nil, "no license by default")
     t.expectEqual(defaults.playbackSettings, PlaybackSettings())
     // by default we take over the system wallpaper so macOS animates nothing behind us.
     t.expectEqual(defaults.replaceSystemWallpaper, true)
@@ -32,7 +31,6 @@ func runWallpaperConfigTests(_ t: TestRunner) {
         playlistEnabled: true,
         playbackSettings: PlaybackSettings(volume: 0.4, dim: 0.2),
         pauseOnBattery: false,
-        licenseToken: "signed.token.value",
         replaceSystemWallpaper: false,
         showOnAllSpaces: false
     )

@@ -21,9 +21,6 @@ final class PreferencesModel: ObservableObject {
     @Published var replaceSystemWallpaper: Bool
     @Published var showOnAllSpaces: Bool
     @Published var launchAtLogin: Bool
-    @Published var tier: LicenseTier
-    @Published var licenseKeyInput: String = ""
-    @Published var licenseMessage: String = ""
 
     init(controller: WallpaperController) {
         self.controller = controller
@@ -41,10 +38,7 @@ final class PreferencesModel: ObservableObject {
         replaceSystemWallpaper = config.replaceSystemWallpaper
         showOnAllSpaces = config.showOnAllSpaces
         launchAtLogin = LaunchAtLoginService.isEnabled
-        tier = controller.tier
     }
-
-    var isPro: Bool { tier == .pro }
 
     var appVersion: String {
         let info = Bundle.main.infoDictionary
@@ -80,7 +74,7 @@ final class PreferencesModel: ObservableObject {
         controller.setPlaybackSettings(PlaybackSettings(volume: volume, dim: dim, speed: speed))
     }
 
-    // MARK: - playlist (pro)
+    // MARK: - playlist
 
     var playlistVideoNames: [String] { playlistVideos.map { $0.lastPathComponent } }
 
@@ -145,35 +139,5 @@ final class PreferencesModel: ObservableObject {
     func updateLaunchAtLogin(_ enabled: Bool) {
         launchAtLogin = enabled
         LaunchAtLoginService.setEnabled(enabled)
-    }
-
-    // fill the license field directly from the clipboard, so paste works with one click even
-    // if a keyboard shortcut does not reach the field.
-    func pasteLicenseFromClipboard() {
-        if let text = NSPasteboard.general.string(forType: .string) {
-            licenseKeyInput = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-    }
-
-    func activateLicense() {
-        let token = licenseKeyInput.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !token.isEmpty else {
-            licenseMessage = "Enter a license key."
-            return
-        }
-        guard let claims = LicenseVerifier.verify(token: token) else {
-            licenseMessage = "That license key is not valid."
-            return
-        }
-        controller.setLicense(token: token, tier: claims.tier)
-        tier = claims.tier
-        licenseKeyInput = ""
-        licenseMessage = "Activated. Thanks, \(claims.email)."
-    }
-
-    func deactivateLicense() {
-        controller.setLicense(token: nil, tier: .free)
-        tier = .free
-        licenseMessage = "Deactivated. Pro features are locked."
     }
 }
