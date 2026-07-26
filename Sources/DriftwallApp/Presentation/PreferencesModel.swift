@@ -91,6 +91,30 @@ final class PreferencesModel: ObservableObject {
         }
     }
 
+    // add every video file directly inside a chosen folder to the playlist, sorted by name.
+    func addPlaylistFolder() {
+        let panel = NSOpenPanel()
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.prompt = "Add Folder"
+        guard panel.runModal() == .OK, let folder = panel.url else { return }
+        let videos = Self.videoFiles(in: folder)
+        guard !videos.isEmpty else { return }
+        playlistVideos.append(contentsOf: videos)
+        commitPlaylist()
+    }
+
+    private static func videoFiles(in folder: URL) -> [URL] {
+        let extensions: Set<String> = ["mp4", "m4v", "mov"]
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+        )) ?? []
+        return contents
+            .filter { extensions.contains($0.pathExtension.lowercased()) }
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+    }
+
     func removePlaylistVideo(at index: Int) {
         guard playlistVideos.indices.contains(index) else { return }
         playlistVideos.remove(at: index)

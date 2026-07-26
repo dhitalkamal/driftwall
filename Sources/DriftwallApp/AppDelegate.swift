@@ -47,18 +47,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.onOpenPreferences = { [weak preferences] in
             preferences?.show()
         }
+        menu.onTogglePause = { [weak self] in self?.controller?.toggleUserPaused() }
+        menu.onNext = { [weak self] in self?.controller?.advancePlaylist() }
+        menu.currentVideoName = { [weak self] in self?.controller?.currentVideoURL?.lastPathComponent }
+        menu.isPaused = { [weak self] in self?.controller?.isUserPaused ?? false }
+        menu.isPlaylistActive = { [weak self] in self?.controller?.isPlaylistActive ?? false }
         controller.onPlaybackStateChanged = { [weak self] state in
             guard let self else { return }
             self.menu.setPlaying(state == .playing)
             self.updateActivity(playing: state == .playing)
         }
 
-        wallpaper.onLoadFailure = { message in
+        wallpaper.onLoadFailure = { [weak self] message in
             let alert = NSAlert()
             alert.messageText = "Could not play that video"
             alert.informativeText = message
             alert.alertStyle = .warning
             alert.runModal()
+            // open Preferences so the user can immediately pick a replacement.
+            self?.preferences?.show()
         }
         power.onChange = { [weak self] in self?.syncEnvironment() }
         wallpaper.onOcclusionChange = { [weak self] in self?.handleOcclusionChange() }

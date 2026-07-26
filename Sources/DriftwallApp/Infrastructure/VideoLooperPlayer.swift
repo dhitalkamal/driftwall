@@ -47,6 +47,17 @@ final class VideoLooperPlayer {
     }
 
     func load(url: URL) {
+        // detect a moved/deleted file up front so we report it clearly instead of relying on a
+        // vague AVPlayerItem failure (and never build a pipeline around a nonexistent file).
+        guard url.isFileURL == false || FileManager.default.fileExists(atPath: url.path) else {
+            currentURL = nil
+            stopWatchdog()
+            player.pause()
+            player.removeAllItems()
+            looper = nil
+            onLoadFailure?("That video could not be found — it may have been moved or deleted. Choose another video in Preferences.")
+            return
+        }
         currentURL = url
         buildPipeline(for: url)
     }

@@ -14,6 +14,13 @@ public final class WallpaperController {
     private var isShowing = false
     private var didTakeOverSystemWallpaper = false
 
+    // manual pause/resume from the menu bar, overriding the automatic playback policy.
+    public private(set) var isUserPaused = false
+    // the video currently resolved onto the wallpaper (single video or current playlist item).
+    public private(set) var currentVideoURL: URL?
+    // true when playlist rotation is active (a rotation timer is running).
+    public var isPlaylistActive: Bool { rotationIntervalSeconds != nil }
+
     // playlist rotation state. order is the play sequence (shuffled or natural); advance counts
     // how many times we have rotated. resolved via WallpaperResolver.
     private var playlistOrder: [Int] = []
@@ -115,11 +122,17 @@ public final class WallpaperController {
         onRotationScheduleChanged?()
     }
 
-    // advance to the next playlist item (called by the app's rotation timer).
+    // advance to the next playlist item (called by the app's rotation timer or the menu).
     public func advancePlaylist() {
         guard rotationIntervalSeconds != nil else { return }
         playlistAdvance += 1
         refreshSurface()
+        applyPlayback()
+    }
+
+    // manual pause/resume from the menu bar; overrides the automatic policy until toggled back.
+    public func toggleUserPaused() {
+        isUserPaused.toggle()
         applyPlayback()
     }
 
@@ -202,6 +215,7 @@ public final class WallpaperController {
             playlistOrder: playlistOrder,
             playlistAdvance: playlistAdvance
         )
+        currentVideoURL = url
         if let url {
             // set window behavior before showing so windows are created on the right Spaces.
             renderer.setShowOnAllSpaces(config.showOnAllSpaces)
@@ -241,6 +255,12 @@ public final class WallpaperController {
 
     private func applyPlayback() {
         guard isShowing else { setPlaybackState(.idle); return }
+        // a manual pause from the menu bar overrides the automatic policy until toggled back.
+        if isUserPaused {
+            renderer.pause()
+            setPlaybackState(.paused)
+            return
+        }
         let conditions = PlaybackConditions(
             hasVideo: true,
             isOccluded: environment.isOccluded,

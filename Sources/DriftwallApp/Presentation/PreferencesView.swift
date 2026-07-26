@@ -108,7 +108,10 @@ private struct PlaylistTab: View {
                         Button("Remove") { model.removePlaylistVideo(at: index) }
                     }
                 }
-                Button("Add Videos...") { model.addPlaylistVideos() }
+                HStack {
+                    Button("Add Videos...") { model.addPlaylistVideos() }
+                    Button("Add Folder...") { model.addPlaylistFolder() }
+                }
             }
         }
         .formStyle(.grouped)
