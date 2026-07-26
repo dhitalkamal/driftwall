@@ -94,7 +94,7 @@ public final class WallpaperController {
         renderer.setSpeed(config.playbackSettings.speed)
     }
 
-    // pro: replace the playlist (videos, shuffle, interval). enabling is separate.
+    // replace the playlist (videos, shuffle, interval). enabling is separate.
     public func setPlaylist(_ playlist: Playlist?) {
         config.playlist = playlist
         store.save(config)
@@ -104,7 +104,7 @@ public final class WallpaperController {
         onRotationScheduleChanged?()
     }
 
-    // pro: turn playlist rotation on/off.
+    // turn playlist rotation on/off.
     public func setPlaylistEnabled(_ enabled: Bool) {
         config.playlistEnabled = enabled
         store.save(config)
