@@ -12,9 +12,10 @@ DIST="$ROOT/dist"
 APP="$DIST/$APP_NAME.app"
 IDENTITY="${DEVELOPER_ID_IDENTITY:-}"
 
-echo "building release binary"
-swift build -c release --package-path "$ROOT"
-BIN="$(swift build -c release --package-path "$ROOT" --show-bin-path)/$PRODUCT_NAME"
+echo "building universal release binary (arm64 + x86_64)"
+ARCHS="--arch arm64 --arch x86_64"
+swift build -c release $ARCHS --package-path "$ROOT"
+BIN="$(swift build -c release $ARCHS --package-path "$ROOT" --show-bin-path)/$PRODUCT_NAME"
 
 if [ ! -f "$BIN" ]; then
 	echo "error: built executable not found at $BIN" >&2
