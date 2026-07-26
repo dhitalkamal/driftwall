@@ -27,8 +27,13 @@ private struct GeneralTab: View {
     var body: some View {
         Form {
             Section {
-                VideoPreview(image: model.previewImage, name: model.selectedVideoName)
-                    .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                VideoPreview(
+                    image: model.previewImage,
+                    name: model.selectedVideoName,
+                    fitMode: model.fitMode,
+                    onDropVideo: { model.setVideo($0) }
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
                 HStack {
                     Button("Choose Video...") { model.chooseVideo() }
                         .buttonStyle(.borderedProminent)
@@ -49,54 +54,19 @@ private struct GeneralTab: View {
             }
 
             Section {
-                Toggle("Show on all Spaces", isOn: bind(\.showOnAllSpaces, model.updateShowOnAllSpaces))
-                Toggle("Pause on battery", isOn: bind(\.pauseOnBattery, model.updatePauseOnBattery))
-                Toggle("Replace system wallpaper while active",
-                       isOn: bind(\.replaceSystemWallpaper, model.updateReplaceSystemWallpaper))
-                Toggle("Launch at login", isOn: bind(\.launchAtLogin, model.updateLaunchAtLogin))
+                Toggle("Show on all Spaces", isOn: Binding(
+                    get: { model.showOnAllSpaces }, set: { model.updateShowOnAllSpaces($0) }))
+                Toggle("Pause on battery", isOn: Binding(
+                    get: { model.pauseOnBattery }, set: { model.updatePauseOnBattery($0) }))
+                Toggle("Replace system wallpaper while active", isOn: Binding(
+                    get: { model.replaceSystemWallpaper }, set: { model.updateReplaceSystemWallpaper($0) }))
+                Toggle("Launch at login", isOn: Binding(
+                    get: { model.launchAtLogin }, set: { model.updateLaunchAtLogin($0) }))
             } header: {
                 Label("Behavior", systemImage: "gearshape")
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func bind(_ keyPath: KeyPath<PreferencesModel, Bool>, _ set: @escaping (Bool) -> Void) -> Binding<Bool> {
-        Binding(get: { model[keyPath: keyPath] }, set: set)
-    }
-}
-
-// a rounded video-still preview with the current file name, or an empty-state placeholder.
-private struct VideoPreview: View {
-    let image: NSImage?
-    let name: String
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            ZStack {
-                if let image {
-                    Image(nsImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    Rectangle().fill(.quaternary)
-                    VStack(spacing: 6) {
-                        Image(systemName: "photo").font(.system(size: 26)).foregroundStyle(.secondary)
-                        Text("No video selected").font(.callout).foregroundStyle(.secondary)
-                    }
-                }
-            }
-            .frame(height: 150)
-            .frame(maxWidth: .infinity)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(.quaternary))
-
-            Label(name, systemImage: "film")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-        }
     }
 }
 

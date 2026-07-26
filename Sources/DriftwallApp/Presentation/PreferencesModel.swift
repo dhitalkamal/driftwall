@@ -84,10 +84,15 @@ final class PreferencesModel: ObservableObject {
         panel.canChooseFiles = true
         panel.prompt = "Set Wallpaper"
         if panel.runModal() == .OK, let url = panel.url {
-            controller.selectVideo(url)
-            selectedVideoName = url.lastPathComponent
-            refreshPreview()
+            setVideo(url)
         }
+    }
+
+    // set the wallpaper video (used by the picker and by drag-and-drop onto the preview).
+    func setVideo(_ url: URL) {
+        controller.selectVideo(url)
+        selectedVideoName = url.lastPathComponent
+        refreshPreview()
     }
 
     func removeWallpaper() {
