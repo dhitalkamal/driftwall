@@ -18,6 +18,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
     t.expectEqual(defaults.replaceSystemWallpaper, true)
     // by default the wallpaper shows on every Space.
     t.expectEqual(defaults.showOnAllSpaces, true)
+    // by default a fullscreen app on one display only mutes the wallpaper.
+    t.expectEqual(defaults.fullscreenBehavior, .muteAudio)
 
     // a fully populated config round-trips through json for persistence.
     let full = WallpaperConfig(
@@ -33,7 +35,8 @@ func runWallpaperConfigTests(_ t: TestRunner) {
         playbackSettings: PlaybackSettings(volume: 0.4, dim: 0.2),
         pauseOnBattery: false,
         replaceSystemWallpaper: false,
-        showOnAllSpaces: false
+        showOnAllSpaces: false,
+        fullscreenBehavior: .pauseAll
     )
     t.expectEqual(full.hasVideo, true)
     do {
@@ -41,5 +44,15 @@ func runWallpaperConfigTests(_ t: TestRunner) {
         t.expectEqual(decoded, full)
     } catch {
         t.expect(false, "config failed to round-trip through json: \(error)")
+    }
+
+    // a config saved before fullscreenBehavior existed still loads, with the default.
+    do {
+        let legacy = Data(#"{"pauseOnBattery":false}"#.utf8)
+        let decoded = try JSONDecoder().decode(WallpaperConfig.self, from: legacy)
+        t.expectEqual(decoded.fullscreenBehavior, .muteAudio)
+        t.expectEqual(decoded.pauseOnBattery, false)
+    } catch {
+        t.expect(false, "legacy config failed to decode: \(error)")
     }
 }

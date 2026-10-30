@@ -21,6 +21,7 @@ final class PreferencesModel: ObservableObject {
     @Published var pauseOnBattery: Bool
     @Published var replaceSystemWallpaper: Bool
     @Published var showOnAllSpaces: Bool
+    @Published var fullscreenBehavior: FullscreenBehavior
     @Published var launchAtLogin: Bool
     @Published var previewImage: NSImage?
 
@@ -39,6 +40,7 @@ final class PreferencesModel: ObservableObject {
         pauseOnBattery = config.pauseOnBattery
         replaceSystemWallpaper = config.replaceSystemWallpaper
         showOnAllSpaces = config.showOnAllSpaces
+        fullscreenBehavior = config.fullscreenBehavior
         launchAtLogin = LaunchAtLoginService.isEnabled
         refreshPreview()
     }
@@ -194,6 +196,11 @@ final class PreferencesModel: ObservableObject {
     func updateShowOnAllSpaces(_ enabled: Bool) {
         showOnAllSpaces = enabled
         controller.setShowOnAllSpaces(enabled)
+    }
+
+    func updateFullscreenBehavior(_ behavior: FullscreenBehavior) {
+        fullscreenBehavior = behavior
+        controller.setFullscreenBehavior(behavior)
     }
 
     func updateLaunchAtLogin(_ enabled: Bool) {

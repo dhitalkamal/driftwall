@@ -20,6 +20,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
     // when true, the wallpaper window joins every Space; when false it stays on the Space it
     // was created on.
     public var showOnAllSpaces: Bool
+    // what a fullscreen app on one display does to the wallpaper on the others.
+    public var fullscreenBehavior: FullscreenBehavior
 
     public init(
         selectedVideo: URL? = nil,
@@ -30,7 +32,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         playbackSettings: PlaybackSettings = PlaybackSettings(),
         pauseOnBattery: Bool = true,
         replaceSystemWallpaper: Bool = true,
-        showOnAllSpaces: Bool = true
+        showOnAllSpaces: Bool = true,
+        fullscreenBehavior: FullscreenBehavior = .muteAudio
     ) {
         self.selectedVideo = selectedVideo
         self.perDisplayVideos = perDisplayVideos
@@ -41,6 +44,7 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
         self.pauseOnBattery = pauseOnBattery
         self.replaceSystemWallpaper = replaceSystemWallpaper
         self.showOnAllSpaces = showOnAllSpaces
+        self.fullscreenBehavior = fullscreenBehavior
     }
 
     public init(from decoder: Decoder) throws {
@@ -54,7 +58,8 @@ public struct WallpaperConfig: Codable, Equatable, Sendable {
             playbackSettings: try c.decodeIfPresent(PlaybackSettings.self, forKey: .playbackSettings) ?? PlaybackSettings(),
             pauseOnBattery: try c.decodeIfPresent(Bool.self, forKey: .pauseOnBattery) ?? true,
             replaceSystemWallpaper: try c.decodeIfPresent(Bool.self, forKey: .replaceSystemWallpaper) ?? true,
-            showOnAllSpaces: try c.decodeIfPresent(Bool.self, forKey: .showOnAllSpaces) ?? true
+            showOnAllSpaces: try c.decodeIfPresent(Bool.self, forKey: .showOnAllSpaces) ?? true,
+            fullscreenBehavior: try c.decodeIfPresent(FullscreenBehavior.self, forKey: .fullscreenBehavior) ?? .muteAudio
         )
     }
 

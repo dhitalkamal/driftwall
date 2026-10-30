@@ -9,5 +9,7 @@ runWallpaperControllerTests(runner)
 runRotationTests(runner)
 runPlaybackSettingsTests(runner)
 runWallpaperResolverTests(runner)
+runFullscreenDetectorTests(runner)
+runFullscreenPlaybackTests(runner)
 
 exit(runner.summarize())
