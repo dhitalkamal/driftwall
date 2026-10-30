@@ -2,7 +2,7 @@ import AppKit
 import DriftwallCore
 
 // wires the infrastructure adapters to the core controller, presents the preferences window,
-// and keeps the environment signals in sync with power and occlusion changes.
+// and keeps the environment signals in sync with power, occlusion and fullscreen changes.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let power = PowerMonitor()
@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let store = FileConfigStore()
     private let systemWallpaper = SystemWallpaperController()
     private let menu = StatusMenuController()
+    private let fullscreen = FullscreenAppMonitor()
     private var controller: WallpaperController?
     private var preferences: PreferencesWindowController?
     private var rotationTimer: Timer?
@@ -68,6 +69,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.preferences?.show()
         }
         power.onChange = { [weak self] in self?.syncEnvironment() }
+        fullscreen.onChange = { [weak self] in self?.syncEnvironment() }
         wallpaper.onOcclusionChange = { [weak self] in self?.handleOcclusionChange() }
         wallpaper.onScreensChange = { [weak self] in self?.controller?.handleScreensChanged() }
         wallpaper.onSpaceChange = { [weak self] in
@@ -78,9 +80,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self.occlusionDebounce?.invalidate()
             self.occlusionDebounce = nil
             self.effectivelyHidden = false
+            // settle fullscreen state before re-deciding, so returning from a fullscreen Space
+            // resumes at once instead of re-applying a stale "fullscreen in front" pause.
+            self.fullscreen.spaceDidChange()
             self.controller?.handleSpaceChanged()
         }
         power.start()
+        fullscreen.start()
         installDisplayStateObservers()
 
         controller.start(environment: currentEnvironment())
@@ -95,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // put the user's desktop picture back before we exit.
         controller?.restoreSystemWallpaper()
         power.stop()
+        fullscreen.stop()
     }
 
     // (re)schedule the playlist rotation timer to match the controller's current interval.
@@ -190,9 +197,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func currentEnvironment() -> EnvironmentSignals {
         EnvironmentSignals(
             isOccluded: effectivelyHidden,
-            isFullscreenAppFrontmost: false,
+            isFullscreenAppFrontmost: fullscreen.state.isFrontmost,
             isOnBattery: power.isOnBattery,
-            isDisplayAsleep: displayAsleep || screenLocked
+            isDisplayAsleep: displayAsleep || screenLocked,
+            isFullscreenOnEveryDisplay: fullscreen.state.coversEveryDisplay
         )
     }
 

@@ -7,34 +7,41 @@ public struct PlaybackConditions: Equatable, Sendable {
     public var isFullscreenAppFrontmost: Bool
     public var isOnBattery: Bool
     public var isDisplayAsleep: Bool
+    public var isFullscreenOnEveryDisplay: Bool
 
     public init(
         hasVideo: Bool,
         isOccluded: Bool,
         isFullscreenAppFrontmost: Bool,
         isOnBattery: Bool,
-        isDisplayAsleep: Bool = false
+        isDisplayAsleep: Bool = false,
+        isFullscreenOnEveryDisplay: Bool = false
     ) {
         self.hasVideo = hasVideo
         self.isOccluded = isOccluded
         self.isFullscreenAppFrontmost = isFullscreenAppFrontmost
         self.isOnBattery = isOnBattery
         self.isDisplayAsleep = isDisplayAsleep
+        self.isFullscreenOnEveryDisplay = isFullscreenOnEveryDisplay
     }
 }
 
 public enum PlaybackDecision: Equatable, Sendable {
     case play
+    // keep playing for the displays that can still see it, but with audio silenced.
+    case playMuted
     case pause
 }
 
-// decides whether the wallpaper should play given the current conditions. the only tunable
-// is whether playback pauses while on battery, which the user controls.
+// decides whether the wallpaper should play given the current conditions. the tunables are
+// whether playback pauses on battery and what a fullscreen app does, both user controlled.
 public struct PlaybackPolicy: Sendable {
     public let pauseOnBattery: Bool
+    public let fullscreenBehavior: FullscreenBehavior
 
-    public init(pauseOnBattery: Bool = true) {
+    public init(pauseOnBattery: Bool = true, fullscreenBehavior: FullscreenBehavior = .muteAudio) {
         self.pauseOnBattery = pauseOnBattery
+        self.fullscreenBehavior = fullscreenBehavior
     }
 
     public func decide(_ conditions: PlaybackConditions) -> PlaybackDecision {
@@ -46,8 +53,14 @@ public struct PlaybackPolicy: Sendable {
         // a Space change, so a brief occlusion during a switch never pauses (which would strand a
         // black/paused frame on return); only sustained occlusion pauses.
         if conditions.isOccluded { return .pause }
-        if conditions.isFullscreenAppFrontmost { return .pause }
+        // fullscreen on every display hides the wallpaper everywhere (the single-display case).
+        if conditions.isFullscreenOnEveryDisplay { return .pause }
         if conditions.isOnBattery && pauseOnBattery { return .pause }
+        // fullscreen on some displays only: the rest still show the wallpaper, so the user picks
+        // between silencing it and pausing it everywhere.
+        if conditions.isFullscreenAppFrontmost {
+            return fullscreenBehavior == .pauseAll ? .pause : .playMuted
+        }
         return .play
     }
 }

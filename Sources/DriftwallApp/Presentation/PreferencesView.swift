@@ -58,6 +58,14 @@ private struct GeneralTab: View {
                     get: { model.showOnAllSpaces }, set: { model.updateShowOnAllSpaces($0) }))
                 Toggle("Pause on battery", isOn: Binding(
                     get: { model.pauseOnBattery }, set: { model.updatePauseOnBattery($0) }))
+                // only matters with several displays: a fullscreen app on the only display
+                // always pauses, since the wallpaper is not visible anywhere.
+                Picker("Fullscreen app on one display", selection: Binding(
+                    get: { model.fullscreenBehavior }, set: { model.updateFullscreenBehavior($0) }
+                )) {
+                    Text("Mute sound").tag(FullscreenBehavior.muteAudio)
+                    Text("Pause wallpaper").tag(FullscreenBehavior.pauseAll)
+                }
                 Toggle("Replace system wallpaper while active", isOn: Binding(
                     get: { model.replaceSystemWallpaper }, set: { model.updateReplaceSystemWallpaper($0) }))
                 Toggle("Launch at login", isOn: Binding(

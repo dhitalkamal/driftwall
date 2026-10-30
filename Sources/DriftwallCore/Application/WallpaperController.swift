@@ -13,6 +13,9 @@ public final class WallpaperController {
     private var environment: EnvironmentSignals
     private var isShowing = false
     private var didTakeOverSystemWallpaper = false
+    // audio silenced because a fullscreen app is in front. the saved volume is left untouched
+    // so it comes back as soon as fullscreen ends.
+    private var isAudioSuppressed = false
 
     // manual pause/resume from the menu bar, overriding the automatic playback policy.
     public private(set) var isUserPaused = false
@@ -97,7 +100,7 @@ public final class WallpaperController {
     public func setPlaybackSettings(_ settings: PlaybackSettings) {
         config.playbackSettings = settings
         store.save(config)
-        renderer.setVolume(settings.volume)
+        applyVolume()
         renderer.setDim(settings.dim)
         renderer.setSpeed(config.playbackSettings.speed)
     }
@@ -150,6 +153,13 @@ public final class WallpaperController {
     // user toggled whether playback pauses on battery.
     public func setPauseOnBattery(_ enabled: Bool) {
         config.pauseOnBattery = enabled
+        store.save(config)
+        applyPlayback()
+    }
+
+    // user picked what a fullscreen app on one display does to the wallpaper.
+    public func setFullscreenBehavior(_ behavior: FullscreenBehavior) {
+        config.fullscreenBehavior = behavior
         store.save(config)
         applyPlayback()
     }
@@ -221,7 +231,7 @@ public final class WallpaperController {
             renderer.setShowOnAllSpaces(config.showOnAllSpaces)
             renderer.show(video: url)
             renderer.setFitMode(config.fitMode)
-            renderer.setVolume(config.playbackSettings.volume)
+            applyVolume()
             renderer.setDim(config.playbackSettings.dim)
             renderer.setSpeed(config.playbackSettings.speed)
             isShowing = true
@@ -266,17 +276,38 @@ public final class WallpaperController {
             isOccluded: environment.isOccluded,
             isFullscreenAppFrontmost: environment.isFullscreenAppFrontmost,
             isOnBattery: environment.isOnBattery,
-            isDisplayAsleep: environment.isDisplayAsleep
+            isDisplayAsleep: environment.isDisplayAsleep,
+            isFullscreenOnEveryDisplay: environment.isFullscreenOnEveryDisplay
         )
-        let policy = PlaybackPolicy(pauseOnBattery: config.pauseOnBattery)
+        let policy = PlaybackPolicy(
+            pauseOnBattery: config.pauseOnBattery,
+            fullscreenBehavior: config.fullscreenBehavior
+        )
         switch policy.decide(conditions) {
         case .play:
+            setAudioSuppressed(false)
+            renderer.play()
+            setPlaybackState(.playing)
+        case .playMuted:
+            setAudioSuppressed(true)
             renderer.play()
             setPlaybackState(.playing)
         case .pause:
             renderer.pause()
             setPlaybackState(.paused)
         }
+    }
+
+    // a pause leaves suppression as is: nothing is audible while paused, and the next play
+    // decision sets it correctly before audio can resume.
+    private func setAudioSuppressed(_ suppressed: Bool) {
+        guard suppressed != isAudioSuppressed else { return }
+        isAudioSuppressed = suppressed
+        applyVolume()
+    }
+
+    private func applyVolume() {
+        renderer.setVolume(isAudioSuppressed ? 0 : config.playbackSettings.volume)
     }
 
     private func setPlaybackState(_ state: PlaybackState) {

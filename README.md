@@ -10,7 +10,8 @@ Free and open source under the [MIT license](LICENSE).
 - One video across all displays, or a different video per display.
 - Playlists with scheduled rotation and optional shuffle.
 - Fit mode (fill / fit / stretch), volume, dim, and playback speed.
-- Pauses on battery or when a fullscreen app is frontmost.
+- Pauses on battery or when a fullscreen app is frontmost. With several displays, a
+  fullscreen app on one of them mutes the wallpaper (or pauses it, your choice).
 - Launch at login. Lives in the menu bar, no Dock icon.
 
 ## Requirements
@@ -55,7 +56,8 @@ macOS has no public API to set a video as the desktop picture, so Driftwall uses
 - Video plays through `AVQueuePlayer` + `AVPlayerLooper` for gapless looping, with a dim
   overlay layer and per-fit-mode video gravity.
 - Playback pauses on a fullscreen app or on battery, driven by a pure playback policy fed by
-  IOKit power state and window occlusion.
+  IOKit power state, window occlusion, and the window server's on-screen window list
+  (bounds only, so no Screen Recording permission is needed).
 
 ## Architecture
 
