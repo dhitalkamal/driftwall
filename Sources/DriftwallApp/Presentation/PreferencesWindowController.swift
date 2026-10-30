@@ -2,9 +2,9 @@ import AppKit
 import SwiftUI
 
 // the settings window: a toolbar tab bar (icon over label, like other Mac settings windows)
-// with one SwiftUI view per tab. the window title follows the selected tab and the window
-// resizes to each tab's height. because the app is an accessory (no dock icon), show()
-// activates the app so the window can take focus.
+// with one SwiftUI view per tab. the window title follows the selected tab, and every tab is
+// the same fixed size so the window never resizes. because the app is an accessory (no dock
+// icon), show() activates the app so the window can take focus.
 @MainActor
 final class PreferencesWindowController: NSWindowController {
     convenience init(model: PreferencesModel) {
@@ -30,25 +30,19 @@ final class PreferencesWindowController: NSWindowController {
     }
 }
 
-// keeps the window title in step with the selected tab.
+// builds the toolbar tabs. the window title is bound to this controller's title, which a
+// toolbar-style tab controller copies from the selected child controller, so each child's title
+// must be its tab label or the window shows "Untitled".
 private final class SettingsTabController: NSTabViewController {
     func addTab<Content: View>(_ label: String, symbol: String, view: Content) {
         let hosting = NSHostingController(rootView: view)
-        // size the window to the tab's own content, so short tabs do not leave empty space.
+        hosting.title = label
+        // every tab reports the same fixed page size (SettingsMetrics), so the window keeps
+        // one size across tabs.
         hosting.sizingOptions = [.preferredContentSize]
         let item = NSTabViewItem(viewController: hosting)
         item.label = label
         item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: label)
         addTabViewItem(item)
-    }
-
-    override func tabView(_ tabView: NSTabView, didSelect tabViewItem: NSTabViewItem?) {
-        super.tabView(tabView, didSelect: tabViewItem)
-        view.window?.title = tabViewItem?.label ?? "Driftwall"
-    }
-
-    override func viewDidAppear() {
-        super.viewDidAppear()
-        view.window?.title = tabView.selectedTabViewItem?.label ?? "Driftwall"
     }
 }
