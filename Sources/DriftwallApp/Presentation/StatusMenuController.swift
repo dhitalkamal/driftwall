@@ -65,7 +65,7 @@ final class StatusMenuController: NSObject, NSMenuDelegate {
         menu.addItem(choose)
 
         let prefs = NSMenuItem(
-            title: "Preferences...", action: #selector(openPreferences), keyEquivalent: ","
+            title: "Settings...", action: #selector(openPreferences), keyEquivalent: ","
         )
         prefs.target = self
         menu.addItem(prefs)
