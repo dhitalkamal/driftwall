@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 
 // lightweight append-only diagnostics log at
 // ~/Library/Application Support/Driftwall/diagnostics.log. used to capture the wallpaper's
@@ -8,6 +8,17 @@ enum Diagnostics {
     private static var fileURL: URL? {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
         return base?.appendingPathComponent("Driftwall/diagnostics.log")
+    }
+
+    // select the log in Finder so a user can attach it to a bug report. writes a first line
+    // when the log does not exist yet, since Finder cannot select a missing file.
+    @MainActor
+    static func revealInFinder() {
+        guard let url = fileURL else { return }
+        if !FileManager.default.fileExists(atPath: url.path) {
+            log("log opened from Preferences")
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     static func log(_ message: String) {

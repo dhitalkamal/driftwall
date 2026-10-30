@@ -55,7 +55,7 @@ final class VideoLooperPlayer {
             player.pause()
             player.removeAllItems()
             looper = nil
-            onLoadFailure?("That video could not be found — it may have been moved or deleted. Choose another video in Preferences.")
+            onLoadFailure?("That video could not be found. It may have been moved or deleted. Choose another video in Settings.")
             return
         }
         currentURL = url

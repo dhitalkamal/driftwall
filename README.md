@@ -34,7 +34,7 @@ Or run without bundling:
     swift run DriftwallApp
 
 The app lives in the menu bar (no Dock icon). Click the icon, choose a video, or open
-Preferences. Quitting removes the wallpaper and reveals your normal desktop.
+Settings. Quitting removes the wallpaper and reveals your normal desktop.
 
 ## Tests
 

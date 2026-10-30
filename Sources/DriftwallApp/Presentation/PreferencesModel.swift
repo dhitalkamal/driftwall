@@ -24,6 +24,13 @@ final class PreferencesModel: ObservableObject {
     @Published var fullscreenBehavior: FullscreenBehavior
     @Published var launchAtLogin: Bool
     @Published var previewImage: NSImage?
+    // one-line facts about the chosen video, e.g. "3840 x 2160, 42 s loop, 186 MB".
+    @Published var videoDetails = ""
+    // per-video thumbnails and loop lengths for the playlist rows, filled in as they load.
+    @Published var playlistStills: [URL: NSImage] = [:]
+    @Published var playlistLengths: [URL: String] = [:]
+    // playlist videos whose info is loading, so a list edit mid-load does not start a second load.
+    private var loadingInfo: Set<URL> = []
 
     init(controller: WallpaperController) {
         self.controller = controller
@@ -43,33 +50,29 @@ final class PreferencesModel: ObservableObject {
         fullscreenBehavior = config.fullscreenBehavior
         launchAtLogin = LaunchAtLoginService.isEnabled
         refreshPreview()
+        loadPlaylistInfo()
     }
 
-    // a still thumbnail of the current video, shown in the Wallpaper section.
-    private struct Thumb: @unchecked Sendable { let cg: CGImage }
-
+    // the still and the details line for the chosen video, shown on the Wallpaper tab.
     private func refreshPreview() {
         guard let url = controller.config.selectedVideo else {
             previewImage = nil
+            videoDetails = ""
             return
         }
         Task { [weak self] in
-            let thumb = await Self.thumbnail(for: url)
-            await MainActor.run {
-                self?.previewImage = thumb.map { NSImage(cgImage: $0.cg, size: .zero) }
-            }
+            let still = await VideoInfoLoader.still(for: url, maxSize: CGSize(width: 1280, height: 800))
+            let details = await VideoInfoLoader.details(for: url)
+            // a newer choice may have landed while this one loaded; drop stale results.
+            guard let self, self.controller.config.selectedVideo == url else { return }
+            self.previewImage = still.map { NSImage(cgImage: $0.image, size: .zero) }
+            self.videoDetails = details.summary
         }
     }
 
-    private nonisolated static func thumbnail(for url: URL) async -> Thumb? {
-        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
-        generator.appliesPreferredTrackTransform = true
-        generator.maximumSize = CGSize(width: 640, height: 400)
-        guard let frame = try? await generator.image(at: CMTime(seconds: 0.1, preferredTimescale: 600)) else {
-            return nil
-        }
-        return Thumb(cg: frame.image)
-    }
+    // the video on the desktop right now, which may be a playlist item rather than the chosen
+    // single video. read when the view renders, so a playlist row can be marked as playing.
+    var currentVideoURL: URL? { controller.currentVideoURL }
 
     var appVersion: String {
         let info = Bundle.main.infoDictionary
@@ -101,6 +104,7 @@ final class PreferencesModel: ObservableObject {
         controller.clearVideo()
         selectedVideoName = "None"
         previewImage = nil
+        videoDetails = ""
     }
 
     func updateFitMode(_ mode: FitMode) {
@@ -174,6 +178,21 @@ final class PreferencesModel: ObservableObject {
         controller.setPlaylistEnabled(enabled)
     }
 
+    // load thumbnails and loop lengths for playlist videos that do not have them yet.
+    private func loadPlaylistInfo() {
+        for url in playlistVideos where playlistStills[url] == nil && !loadingInfo.contains(url) {
+            loadingInfo.insert(url)
+            Task { [weak self] in
+                let still = await VideoInfoLoader.still(for: url, maxSize: CGSize(width: 160, height: 100))
+                let details = await VideoInfoLoader.details(for: url)
+                guard let self else { return }
+                self.loadingInfo.remove(url)
+                if let still { self.playlistStills[url] = NSImage(cgImage: still.image, size: .zero) }
+                self.playlistLengths[url] = details.loopLength
+            }
+        }
+    }
+
     private func commitPlaylist() {
         let playlist = Playlist(
             videos: playlistVideos,
@@ -181,6 +200,7 @@ final class PreferencesModel: ObservableObject {
             intervalSeconds: playlistIntervalMinutes * 60
         )
         controller.setPlaylist(playlist)
+        loadPlaylistInfo()
     }
 
     func updatePauseOnBattery(_ enabled: Bool) {
@@ -201,6 +221,10 @@ final class PreferencesModel: ObservableObject {
     func updateFullscreenBehavior(_ behavior: FullscreenBehavior) {
         fullscreenBehavior = behavior
         controller.setFullscreenBehavior(behavior)
+    }
+
+    func showLog() {
+        Diagnostics.revealInFinder()
     }
 
     func updateLaunchAtLogin(_ enabled: Bool) {
