@@ -114,6 +114,7 @@ public final class WallpaperController {
         store.save(config)
         applyVolume()
         renderer.setDim(settings.dim)
+        systemWallpaper.setDim(settings.dim)
         renderer.setSpeed(config.playbackSettings.speed)
     }
 
@@ -252,8 +253,9 @@ public final class WallpaperController {
             isShowing = false
             setPlaybackState(.idle)
         }
-        // let the system-wallpaper stand-in match the current video and fit before taking over.
+        // let the system-wallpaper stand-in match the current video, fit and dim before taking over.
         systemWallpaper.setFitMode(config.fitMode)
+        systemWallpaper.setDim(config.playbackSettings.dim)
         systemWallpaper.setStandIn(forVideo: isShowing ? url : nil)
         syncSystemWallpaper()
     }

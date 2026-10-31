@@ -23,11 +23,32 @@ final class SystemWallpaperController: SystemWallpaperControlling {
     private var standInURL: URL?
     private var posterVideoURL: URL?
     private var fitMode: FitMode = .fill
+    // the undimmed poster frame, kept so a dim change re-darkens it without decoding again.
+    private var posterFrame: StandInPoster.Frame?
+    private var dim: Double = 0
+    private var dimWork: DispatchWorkItem?
+    // bumped on every poster write; a write that finishes after a newer one started is dropped.
+    private var posterWrites = 0
 
     func setFitMode(_ mode: FitMode) {
         guard mode != fitMode else { return }
         fitMode = mode
         reapplyStandIn()  // re-scale the stand-in already on screen to the new fit mode.
+    }
+
+    // darken the stand-in to match the window's dim overlay. macOS draws the menu bar over the
+    // desktop picture, not over our window, so an undimmed stand-in shows as a bright strip
+    // under the menu bar. a slider drag sends many values, so re-render once it settles.
+    func setDim(_ dim: Double) {
+        let clamped = min(1, max(0, dim))
+        guard clamped != self.dim else { return }
+        self.dim = clamped
+        dimWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated { self?.writePoster() }
+        }
+        dimWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: work)
     }
 
     // desktop-picture scaling that mirrors the video's fit mode, so revealing the stand-in
@@ -56,17 +77,34 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         guard let url else {
             standInURL = nil
             posterVideoURL = nil
+            posterFrame = nil
             return
         }
         guard posterVideoURL != url else { return }
         posterVideoURL = url
+        let maxSize = maxDisplayPixelSize
         Task { [weak self] in
-            guard let self else { return }
-            let poster = await self.generatePoster(for: url)
+            let frame = await StandInPoster.frame(for: url, maxSize: maxSize)
             // ignore if the selected video changed while the poster was generating.
-            guard self.posterVideoURL == url else { return }
-            self.standInURL = poster
-            // if we already took over with black, swap in the poster now that it is ready.
+            guard let self, self.posterVideoURL == url else { return }
+            self.posterFrame = frame
+            self.writePoster()
+        }
+    }
+
+    // write the poster darkened by the current dim, then show it on the displays we took
+    // over (swapping out the black placeholder on first use). alternates between two file
+    // names: macOS keeps showing a cached picture when the url does not change.
+    private func writePoster() {
+        guard let frame = posterFrame, let directory = supportDirectory else { return }
+        posterWrites += 1
+        let write = posterWrites
+        let name = write % 2 == 0 ? "poster-a.png" : "poster-b.png"
+        let dim = self.dim
+        Task { [weak self] in
+            let url = await StandInPoster.write(frame, dim: dim, to: directory, name: name)
+            guard let self, self.posterWrites == write, let url else { return }
+            self.standInURL = url
             self.reapplyStandIn()
         }
     }
@@ -165,31 +203,6 @@ final class SystemWallpaperController: SystemWallpaperControlling {
     private func isOurImage(_ url: URL) -> Bool {
         guard let directory = supportDirectory else { return false }
         return url.standardizedFileURL.path.hasPrefix(directory.standardizedFileURL.path)
-    }
-
-    // extract a still frame near the start of the video and write it as poster.png. runs the
-    // heavy decode off the main thread inside AVAssetImageGenerator; returns nil on failure.
-    private func generatePoster(for url: URL) async -> URL? {
-        guard let directory = supportDirectory else { return nil }
-        let generator = AVAssetImageGenerator(asset: AVURLAsset(url: url))
-        generator.appliesPreferredTrackTransform = true
-        // the stand-in is only ever shown at display size, so don't decode/encode a full 4K
-        // still (a ~24MB transient bitmap + PNG encode) when a screen-sized frame will do.
-        generator.maximumSize = maxDisplayPixelSize
-        do {
-            let frame = try await generator.image(at: CMTime(seconds: 0.1, preferredTimescale: 600))
-            let rep = NSBitmapImageRep(cgImage: frame.image)
-            guard let png = rep.representation(using: .png, properties: [:]) else { return nil }
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-            let posterURL = directory.appendingPathComponent("poster.png")
-            try png.write(to: posterURL, options: .atomic)
-            return posterURL
-        } catch {
-            FileHandle.standardError.write(
-                Data("Driftwall: failed to generate poster frame: \(error)\n".utf8)
-            )
-            return nil
-        }
     }
 
     // MARK: - persistence

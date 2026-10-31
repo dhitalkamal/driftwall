@@ -47,6 +47,10 @@ public protocol SystemWallpaperControlling: AnyObject {
     // match the desktop stand-in's scaling to the video's fit mode, so a Space transition that
     // reveals the stand-in keeps the same framing (Fit stays letterboxed, not cropped to fill).
     func setFitMode(_ mode: FitMode)
+    // darken the desktop stand-in by the wallpaper's dim amount (0...1). macOS draws the menu
+    // bar over the desktop picture, not over our window, so an undimmed stand-in shows as a
+    // bright strip under the menu bar (and flashes undimmed during Space switches).
+    func setDim(_ dim: Double)
     func takeOver()
     func restore()
 }
@@ -58,6 +62,7 @@ public final class NoopSystemWallpaper: SystemWallpaperControlling {
     public init() {}
     public func setStandIn(forVideo url: URL?) {}
     public func setFitMode(_ mode: FitMode) {}
+    public func setDim(_ dim: Double) {}
     public func takeOver() {}
     public func restore() {}
 }
