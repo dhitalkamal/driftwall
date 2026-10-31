@@ -51,6 +51,11 @@ public protocol SystemWallpaperControlling: AnyObject {
     // bar over the desktop picture, not over our window, so an undimmed stand-in shows as a
     // bright strip under the menu bar (and flashes undimmed during Space switches).
     func setDim(_ dim: Double)
+    // macOS keeps a desktop picture per Space and we only set the active one, so a Space can
+    // still show an older stand-in of ours (undimmed, previous video). called on every Space
+    // switch: replace such a stale picture with the current stand-in. never touches pictures
+    // we did not generate.
+    func refreshActiveSpace()
     func takeOver()
     func restore()
 }
@@ -63,6 +68,7 @@ public final class NoopSystemWallpaper: SystemWallpaperControlling {
     public func setStandIn(forVideo url: URL?) {}
     public func setFitMode(_ mode: FitMode) {}
     public func setDim(_ dim: Double) {}
+    public func refreshActiveSpace() {}
     public func takeOver() {}
     public func restore() {}
 }

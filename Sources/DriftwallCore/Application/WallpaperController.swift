@@ -221,6 +221,8 @@ public final class WallpaperController {
         guard isShowing else { return }
         applyPlayback()
         renderer.refresh()
+        // the Space we arrived on may still show an older stand-in of ours; bring it up to date.
+        if didTakeOverSystemWallpaper { systemWallpaper.refreshActiveSpace() }
     }
 
     private func regeneratePlaylistOrder() {

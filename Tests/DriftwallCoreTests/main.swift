@@ -13,6 +13,7 @@ runFullscreenDetectorTests(runner)
 runFullscreenPlaybackTests(runner)
 runVideoDetailsTests(runner)
 runDimStandInTests(runner)
+runStandInFilesTests(runner)
 runPickWinsTests(runner)
 runVideoFileTypesTests(runner)
 

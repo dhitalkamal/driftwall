@@ -161,6 +161,18 @@ final class SystemWallpaperController: SystemWallpaperControlling {
         }
     }
 
+    // replace a stale picture of ours on the active Space; user pictures are never replaced.
+    func refreshActiveSpace() {
+        guard !saved.isEmpty, let standIn = currentStandIn(), let directory = supportDirectory else { return }
+        for screen in NSScreen.screens {
+            guard let id = displayID(for: screen), saved[id] != nil else { continue }
+            let current = NSWorkspace.shared.desktopImageURL(for: screen)
+            if StandInFiles.needsRefresh(current: current, standIn: standIn, directory: directory) {
+                setDesktopImage(standIn, for: screen)
+            }
+        }
+    }
+
     func restore() {
         for screen in NSScreen.screens {
             guard let id = displayID(for: screen), let original = saved[id] else { continue }
@@ -202,7 +214,7 @@ final class SystemWallpaperController: SystemWallpaperControlling {
     // never captured as a user "original".
     private func isOurImage(_ url: URL) -> Bool {
         guard let directory = supportDirectory else { return false }
-        return url.standardizedFileURL.path.hasPrefix(directory.standardizedFileURL.path)
+        return StandInFiles.isOurs(url, directory: directory)
     }
 
     // MARK: - persistence
