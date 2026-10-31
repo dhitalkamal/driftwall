@@ -42,7 +42,9 @@ final class FakeSystemWallpaper: SystemWallpaperControlling {
     var restoreCount = 0
     var standInVideos: [URL?] = []
     func setStandIn(forVideo url: URL?) { standInVideos.append(url) }
+    var dims: [Double] = []
     func setFitMode(_ mode: FitMode) {}
+    func setDim(_ dim: Double) { dims.append(dim) }
     func takeOver() { takeOverCount += 1 }
     func restore() { restoreCount += 1 }
 }

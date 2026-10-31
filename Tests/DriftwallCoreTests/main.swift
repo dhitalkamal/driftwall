@@ -12,5 +12,6 @@ runWallpaperResolverTests(runner)
 runFullscreenDetectorTests(runner)
 runFullscreenPlaybackTests(runner)
 runVideoDetailsTests(runner)
+runDimStandInTests(runner)
 
 exit(runner.summarize())
