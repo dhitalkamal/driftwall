@@ -45,6 +45,8 @@ final class FakeSystemWallpaper: SystemWallpaperControlling {
     var dims: [Double] = []
     func setFitMode(_ mode: FitMode) {}
     func setDim(_ dim: Double) { dims.append(dim) }
+    var activeSpaceRefreshes = 0
+    func refreshActiveSpace() { activeSpaceRefreshes += 1 }
     func takeOver() { takeOverCount += 1 }
     func restore() { restoreCount += 1 }
 }
