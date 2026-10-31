@@ -20,7 +20,11 @@ public final class WallpaperController {
     // manual pause/resume from the menu bar, overriding the automatic playback policy.
     public private(set) var isUserPaused = false
     // the video currently resolved onto the wallpaper (single video or current playlist item).
-    public private(set) var currentVideoURL: URL?
+    public private(set) var currentVideoURL: URL? {
+        didSet {
+            if currentVideoURL != oldValue { onCurrentVideoChanged?(currentVideoURL) }
+        }
+    }
     // true when playlist rotation is active (a rotation timer is running).
     public var isPlaylistActive: Bool { rotationIntervalSeconds != nil }
 
@@ -32,6 +36,9 @@ public final class WallpaperController {
     // fired when the rotation schedule may have changed (playlist edited or enabled) so the app
     // can (re)schedule its rotation timer.
     public var onRotationScheduleChanged: (@MainActor () -> Void)?
+
+    // fired when the video on screen changes (pick, rotation, removal), so Settings can show it.
+    public var onCurrentVideoChanged: (@MainActor (URL?) -> Void)?
 
     // fired when the effective playback state changes so the app can reflect it (menu-bar icon).
     // primes a newly attached observer with the current state, since playback may already be
@@ -72,12 +79,17 @@ public final class WallpaperController {
         onRotationScheduleChanged?()
     }
 
-    // user picked a new single video: persist it, show it, and re-evaluate playback.
+    // user picked a new single video: persist it, show it, and re-evaluate playback. the pick
+    // wins over a rotating playlist, so rotation switches off (the playlist itself is kept).
     public func selectVideo(_ url: URL) {
         config.selectedVideo = url
+        let wasRotating = config.playlistEnabled
+        config.playlistEnabled = false
         store.save(config)
+        regeneratePlaylistOrder()
         refreshSurface()
         applyPlayback()
+        if wasRotating { onRotationScheduleChanged?() }
     }
 
     // clear the wallpaper without quitting: forget the video and tear the surface down.
