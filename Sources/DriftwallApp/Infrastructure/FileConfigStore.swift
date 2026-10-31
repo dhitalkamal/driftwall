@@ -1,8 +1,9 @@
 import Foundation
 import DriftwallCore
 
-// persists WallpaperConfig as json under Application Support. a missing or unreadable file
-// yields the default config; write failures are reported to stderr rather than swallowed.
+// persists WallpaperConfig as json under Application Support. a missing file yields the
+// default config; an unreadable one is copied to config.json.unreadable first, so the next
+// save cannot destroy it. write failures are reported to stderr rather than swallowed.
 @MainActor
 final class FileConfigStore: ConfigStoring {
     private let fileURL: URL
@@ -23,7 +24,20 @@ final class FileConfigStore: ConfigStoring {
             return try JSONDecoder().decode(WallpaperConfig.self, from: data)
         } catch {
             FileHandle.standardError.write(Data("Driftwall: failed to load config: \(error)\n".utf8))
+            preserveUnreadableFile()
             return WallpaperConfig()
+        }
+    }
+
+    // copies the unreadable file to config.json.unreadable (replacing any older copy) so the
+    // next save of default settings cannot destroy the user's only copy.
+    private func preserveUnreadableFile() {
+        let backup = fileURL.appendingPathExtension("unreadable")
+        do {
+            try? FileManager.default.removeItem(at: backup)
+            try FileManager.default.copyItem(at: fileURL, to: backup)
+        } catch {
+            FileHandle.standardError.write(Data("Driftwall: failed to back up unreadable config: \(error)\n".utf8))
         }
     }
 

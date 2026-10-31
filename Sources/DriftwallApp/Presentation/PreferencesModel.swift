@@ -111,6 +111,9 @@ final class PreferencesModel: ObservableObject {
 
     func removeWallpaper() {
         controller.clearVideo()
+        // the callback only fires when the on-screen video changes; clearing with nothing on
+        // screen still switches rotation off, so mirror it here too.
+        playlistEnabled = controller.config.playlistEnabled
     }
 
     func updateFitMode(_ mode: FitMode) {
@@ -154,12 +157,11 @@ final class PreferencesModel: ObservableObject {
     }
 
     private static func videoFiles(in folder: URL) -> [URL] {
-        let extensions: Set<String> = ["mp4", "m4v", "mov"]
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
         )) ?? []
         return contents
-            .filter { extensions.contains($0.pathExtension.lowercased()) }
+            .filter(VideoFileTypes.isSupported)
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 
