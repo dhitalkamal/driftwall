@@ -68,18 +68,32 @@ final class VideoLooperPlayer {
         // needs ~3024x1964 pixels; capping here cuts decode CPU/GPU and memory with no visible
         // change, which matters a lot for a wallpaper that plays continuously.
         item.preferredMaximumResolution = maxDisplayPixelSize
-        // surface a load failure (unsupported codec, corrupt, unreadable) instead of leaving
-        // a silent transparent window.
-        statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
-            guard item.status == .failed else { return }
-            let message = item.error?.localizedDescription ?? "The video could not be played."
-            MainActor.assumeIsolated { self?.onLoadFailure?(message) }
-        }
         // recreate the looper for the new item; dropping the old one stops its treadmill.
-        looper = AVPlayerLooper(player: player, templateItem: item)
+        let looper = AVPlayerLooper(player: player, templateItem: item)
+        self.looper = looper
+        // surface a load failure (not a video, unsupported codec, corrupt, unreadable) instead of
+        // leaving a silent blank wallpaper. watch the looper, not the template item: the looper
+        // plays copies of the template, so the template's own status never changes.
+        statusObservation = looper.observe(\.status, options: [.initial, .new]) { [weak self] looper, _ in
+            guard looper.status == .failed else { return }
+            // kvo can fire off the main thread; hop over before touching player state.
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.handleLoadFailure(of: looper) }
+            }
+        }
         if isPlaying {
             player.playImmediately(atRate: desiredRate)
         }
+    }
+
+    // report a file that cannot play once, then stop: forget the url and stop the watchdog so
+    // its stall recovery does not rebuild the same failing pipeline and report it again every
+    // few seconds. a failure from a looper that has since been replaced is stale and ignored.
+    private func handleLoadFailure(of failed: AVPlayerLooper) {
+        guard failed === looper, currentURL != nil else { return }
+        currentURL = nil
+        stopWatchdog()
+        onLoadFailure?("Driftwall can't play this file. It may not be a video, or its format isn't supported. Choose another video in Settings.")
     }
 
     func setVolume(_ volume: Double) {

@@ -12,5 +12,6 @@ runWallpaperResolverTests(runner)
 runFullscreenDetectorTests(runner)
 runFullscreenPlaybackTests(runner)
 runVideoDetailsTests(runner)
+runVideoFileTypesTests(runner)
 
 exit(runner.summarize())
