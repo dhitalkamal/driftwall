@@ -13,10 +13,11 @@ public struct PlaybackSettings: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let volume = try container.decode(Double.self, forKey: .volume)
-        let dim = try container.decode(Double.self, forKey: .dim)
-        // speed was added later; tolerate older configs that omit it.
-        let speed = try container.decodeIfPresent(Double.self, forKey: .speed) ?? 1.0
+        // each value falls back to its own default when missing or undecodable (speed was
+        // also added later, so older configs omit it); init clamps the result.
+        let volume = container.decodeLenient(Double.self, forKey: .volume) ?? 0
+        let dim = container.decodeLenient(Double.self, forKey: .dim) ?? 0
+        let speed = container.decodeLenient(Double.self, forKey: .speed) ?? 1.0
         self.init(volume: volume, dim: dim, speed: speed)
     }
 

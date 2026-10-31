@@ -105,6 +105,8 @@ final class PreferencesModel: ObservableObject {
         selectedVideoName = "None"
         previewImage = nil
         videoDetails = ""
+        // clearing also switches rotation off; mirror it so the Playlist tab's toggle matches.
+        playlistEnabled = controller.config.playlistEnabled
     }
 
     func updateFitMode(_ mode: FitMode) {
