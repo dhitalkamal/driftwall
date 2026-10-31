@@ -55,4 +55,57 @@ func runWallpaperConfigTests(_ t: TestRunner) {
     } catch {
         t.expect(false, "legacy config failed to decode: \(error)")
     }
+
+    runConfigFieldFallbackTests(t)
+}
+
+// one undecodable field must fall back to its own default without discarding the rest of
+// the file, so a newer build's values never wipe a user's setup.
+private func runConfigFieldFallbackTests(_ t: TestRunner) {
+    func decode(_ json: String) -> WallpaperConfig? {
+        do {
+            return try JSONDecoder().decode(WallpaperConfig.self, from: Data(json.utf8))
+        } catch {
+            t.expect(false, "config with one bad field failed to decode: \(error)")
+            return nil
+        }
+    }
+    let playlist = #""playlist":{"videos":["file:///tmp/a.mp4"],"shuffle":true,"intervalSeconds":60}"#
+
+    // unknown fitMode keeps everything else and falls back to fill.
+    if let c = decode(#"{"selectedVideo":"file:///tmp/loop.mp4",\#(playlist),"fitMode":"tile","pauseOnBattery":false}"#) {
+        t.expectEqual(c.fitMode, .fill)
+        t.expectEqual(c.selectedVideo, URL(string: "file:///tmp/loop.mp4"))
+        t.expect(c.playlist != nil, "playlist survives an unknown fitMode")
+        t.expectEqual(c.pauseOnBattery, false)
+    }
+
+    // unknown fullscreenBehavior keeps the rest and falls back to muteAudio.
+    if let c = decode(#"{"selectedVideo":"file:///tmp/loop.mp4","fullscreenBehavior":"explode","pauseOnBattery":false}"#) {
+        t.expectEqual(c.fullscreenBehavior, .muteAudio)
+        t.expectEqual(c.selectedVideo, URL(string: "file:///tmp/loop.mp4"))
+        t.expectEqual(c.pauseOnBattery, false)
+    }
+
+    // malformed playlist becomes nil but the selected video stays.
+    if let c = decode(#"{"selectedVideo":"file:///tmp/loop.mp4","playlist":5}"#) {
+        t.expect(c.playlist == nil, "malformed playlist decodes as nil")
+        t.expectEqual(c.selectedVideo, URL(string: "file:///tmp/loop.mp4"))
+    }
+
+    // a bad volume only resets volume; dim and speed survive.
+    if let c = decode(#"{"selectedVideo":"file:///tmp/loop.mp4","playbackSettings":{"volume":"loud","dim":0.3,"speed":1.5}}"#) {
+        t.expectEqual(c.playbackSettings, PlaybackSettings(volume: 0, dim: 0.3, speed: 1.5))
+        t.expectEqual(c.selectedVideo, URL(string: "file:///tmp/loop.mp4"))
+    }
+
+    // bad dim and speed fall back to their own defaults too.
+    if let c = decode(#"{"playbackSettings":{"volume":0.5,"dim":[],"speed":"fast"}}"#) {
+        t.expectEqual(c.playbackSettings, PlaybackSettings(volume: 0.5, dim: 0, speed: 1.0))
+    }
+
+    // out-of-range values are still clamped.
+    if let c = decode(#"{"playbackSettings":{"volume":5,"dim":-1,"speed":9}}"#) {
+        t.expectEqual(c.playbackSettings, PlaybackSettings(volume: 1, dim: 0, speed: 2.0))
+    }
 }
