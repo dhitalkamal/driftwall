@@ -1,7 +1,9 @@
 import Foundation
 
-// decides which video plays on a given display. precedence: an enabled playlist beats a
-// per-display override, which beats the single video applied to every display.
+// decides which video plays on a given display. precedence: an enabled playlist that can
+// rotate (two or more videos) beats a per-display override, which beats the single video
+// applied to every display. a one-video playlist cannot rotate, so it only fills in when
+// nothing else is chosen.
 public enum WallpaperResolver {
     public static func video(
         for displayId: String,
@@ -9,9 +11,8 @@ public enum WallpaperResolver {
         playlistOrder: [Int],
         playlistAdvance: Int
     ) -> URL? {
-        if config.playlistEnabled,
-           let playlist = config.playlist,
-           !playlist.isEmpty {
+        let playlist = config.playlistEnabled ? config.playlist : nil
+        if let playlist, playlist.videos.count >= 2 {
             return RotationState.currentVideo(
                 playlist: playlist, order: playlistOrder, advanceCount: playlistAdvance
             )
@@ -19,6 +20,6 @@ public enum WallpaperResolver {
         if let perDisplay = config.perDisplayVideos[displayId] {
             return perDisplay
         }
-        return config.selectedVideo
+        return config.selectedVideo ?? playlist?.videos.first
     }
 }

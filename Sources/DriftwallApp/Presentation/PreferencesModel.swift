@@ -9,6 +9,8 @@ import DriftwallCore
 final class PreferencesModel: ObservableObject {
     private let controller: WallpaperController
 
+    // the file name of the video on screen right now: the chosen video, or the current playlist
+    // item while a playlist rotates. "None" when nothing plays.
     @Published var selectedVideoName: String
     @Published var fitMode: FitMode
     @Published var volume: Double
@@ -35,7 +37,7 @@ final class PreferencesModel: ObservableObject {
     init(controller: WallpaperController) {
         self.controller = controller
         let config = controller.config
-        selectedVideoName = config.selectedVideo?.lastPathComponent ?? "None"
+        selectedVideoName = controller.currentVideoURL?.lastPathComponent ?? "None"
         fitMode = config.fitMode
         volume = config.playbackSettings.volume
         dim = config.playbackSettings.dim
@@ -51,11 +53,19 @@ final class PreferencesModel: ObservableObject {
         launchAtLogin = LaunchAtLoginService.isEnabled
         refreshPreview()
         loadPlaylistInfo()
+        // follow what is on screen however it changes: a pick here or in the menu bar, a
+        // rotation tick, or Remove. a pick or Remove can also switch rotation off.
+        controller.onCurrentVideoChanged = { [weak self] url in
+            guard let self else { return }
+            self.selectedVideoName = url?.lastPathComponent ?? "None"
+            self.playlistEnabled = self.controller.config.playlistEnabled
+            self.refreshPreview()
+        }
     }
 
-    // the still and the details line for the chosen video, shown on the Wallpaper tab.
+    // the still and the details line for the video on screen, shown on the Wallpaper tab.
     private func refreshPreview() {
-        guard let url = controller.config.selectedVideo else {
+        guard let url = controller.currentVideoURL else {
             previewImage = nil
             videoDetails = ""
             return
@@ -63,8 +73,8 @@ final class PreferencesModel: ObservableObject {
         Task { [weak self] in
             let still = await VideoInfoLoader.still(for: url, maxSize: CGSize(width: 1280, height: 800))
             let details = await VideoInfoLoader.details(for: url)
-            // a newer choice may have landed while this one loaded; drop stale results.
-            guard let self, self.controller.config.selectedVideo == url else { return }
+            // a newer video may have come on screen while this one loaded; drop stale results.
+            guard let self, self.controller.currentVideoURL == url else { return }
             self.previewImage = still.map { NSImage(cgImage: $0.image, size: .zero) }
             self.videoDetails = details.summary
         }
@@ -93,18 +103,17 @@ final class PreferencesModel: ObservableObject {
         }
     }
 
-    // set the wallpaper video (used by the picker and by drag-and-drop onto the preview).
+    // set the wallpaper video (used by the picker and by drag-and-drop onto the preview). the
+    // name, preview and Rotate toggle update through onCurrentVideoChanged.
     func setVideo(_ url: URL) {
         controller.selectVideo(url)
-        selectedVideoName = url.lastPathComponent
-        refreshPreview()
     }
 
     func removeWallpaper() {
         controller.clearVideo()
-        selectedVideoName = "None"
-        previewImage = nil
-        videoDetails = ""
+        // the callback only fires when the on-screen video changes; clearing with nothing on
+        // screen still switches rotation off, so mirror it here too.
+        playlistEnabled = controller.config.playlistEnabled
     }
 
     func updateFitMode(_ mode: FitMode) {
@@ -148,12 +157,11 @@ final class PreferencesModel: ObservableObject {
     }
 
     private static func videoFiles(in folder: URL) -> [URL] {
-        let extensions: Set<String> = ["mp4", "m4v", "mov"]
         let contents = (try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
         )) ?? []
         return contents
-            .filter { extensions.contains($0.pathExtension.lowercased()) }
+            .filter(VideoFileTypes.isSupported)
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
     }
 

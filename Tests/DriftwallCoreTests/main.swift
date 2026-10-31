@@ -13,5 +13,7 @@ runFullscreenDetectorTests(runner)
 runFullscreenPlaybackTests(runner)
 runVideoDetailsTests(runner)
 runDimStandInTests(runner)
+runPickWinsTests(runner)
+runVideoFileTypesTests(runner)
 
 exit(runner.summarize())

@@ -112,7 +112,11 @@ struct ScreenPreview: View {
         guard let provider = providers.first else { return false }
         _ = provider.loadObject(ofClass: URL.self) { url, _ in
             guard let url else { return }
-            Task { @MainActor in onDropVideo(url) }
+            Task { @MainActor in
+                // refuse documents, images and folders so they never replace the wallpaper.
+                guard VideoFileTypes.isSupported(url) else { NSSound.beep(); return }
+                onDropVideo(url)
+            }
         }
         return true
     }
