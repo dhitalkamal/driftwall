@@ -13,14 +13,34 @@ Free and open source under the [MIT license](LICENSE).
 - Pauses on battery or when a fullscreen app is frontmost. With several displays, a
   fullscreen app on one of them mutes the wallpaper (or pauses it, your choice).
 - Launch at login. Lives in the menu bar, no Dock icon.
+- No Screen Recording or Accessibility permission. Fullscreen detection reads window bounds
+  only, never window contents.
 
-## Requirements
-
-- macOS 13 or later.
-- Swift toolchain. The Xcode command line tools are enough to build and test; full Xcode is
-  only needed to notarize for distribution.
+Runs on macOS 13 (Ventura) or later.
 
 ## Install
+
+With Homebrew:
+
+    brew install --cask dhitalkamal/tap/driftwall
+
+Or download `Driftwall.dmg` from the [latest release](https://github.com/dhitalkamal/driftwall/releases/latest),
+open it, and drag Driftwall into Applications.
+
+### First launch
+
+Driftwall is not notarized yet (that needs a paid Apple developer account), so macOS blocks
+the first launch with a "cannot be opened" message. Open it once with either:
+
+- Right-click Driftwall in Applications, choose Open, then Open again.
+- Or in Terminal: `xattr -dr com.apple.quarantine /Applications/Driftwall.app`
+
+After that it opens normally. The source is all here if you would rather build it yourself.
+
+## Build from source
+
+Needs the Swift toolchain. The Xcode command line tools are enough to build and test; full
+Xcode is only needed to notarize for distribution.
 
     scripts/install.sh          # build + install to /Applications, then launch from Spotlight
 
