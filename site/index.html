@@ -8,6 +8,15 @@
       name="description"
       content="Free, open-source live video wallpaper for macOS. Play any video behind your icons, light on battery."
     />
+    <!-- link previews on reddit, hn, slack, x -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Driftwall - Live video wallpaper for macOS" />
+    <meta
+      property="og:description"
+      content="Free, open-source live video wallpaper for macOS. Play any video behind your icons, light on battery."
+    />
+    <meta property="og:url" content="https://dhitalkamal.github.io/driftwall/" />
+    <meta name="twitter:card" content="summary" />
     <style>
       :root {
         --ink: #0d1730;
@@ -148,7 +157,9 @@
           your icons, loops seamlessly across every display, and stays light on
           battery.
         </p>
-        <a class="btn" href="https://github.com/dhitalkamal/driftwall/releases"
+        <a
+          class="btn"
+          href="https://github.com/dhitalkamal/driftwall/releases/latest"
           >Download</a
         >
         <a class="btn ghost" href="https://github.com/dhitalkamal/driftwall"
@@ -203,9 +214,25 @@
       </section>
 
       <section class="install">
-        <h2>Build it yourself</h2>
+        <h2>Install</h2>
         <p style="color: var(--muted); margin-bottom: 14px">
-          macOS 13+ and the Xcode command line tools. Clone the repo and run:
+          macOS 13 or later. With Homebrew:
+        </p>
+        <pre>brew install --cask dhitalkamal/tap/driftwall</pre>
+        <p style="color: var(--muted); margin: 14px 0">
+          Or download Driftwall.dmg from the
+          <a href="https://github.com/dhitalkamal/driftwall/releases/latest"
+            >latest release</a
+          >
+          and drag it into Applications.
+        </p>
+        <p style="color: var(--muted); margin-bottom: 14px">
+          Driftwall is not notarized yet, so macOS blocks the first launch.
+          Right-click it in Applications and choose Open, or run once:
+        </p>
+        <pre>xattr -dr com.apple.quarantine /Applications/Driftwall.app</pre>
+        <p style="color: var(--muted); margin: 14px 0">
+          Or build it yourself with the Xcode command line tools:
         </p>
         <pre>
 git clone https://github.com/dhitalkamal/driftwall.git
@@ -218,7 +245,11 @@ scripts/install.sh</pre>
       <div class="wrap">
         Driftwall for macOS 13+ &middot; MIT licensed &middot;
         <a href="https://github.com/dhitalkamal/driftwall">GitHub</a> &middot;
-        <a href="../legal/PRIVACY.md">Privacy</a> &middot;
+        <a
+          href="https://github.com/dhitalkamal/driftwall/blob/main/legal/PRIVACY.md"
+          >Privacy</a
+        >
+        &middot;
         <a href="https://github.com/dhitalkamal/driftwall/issues">Support</a>
       </div>
     </footer>
