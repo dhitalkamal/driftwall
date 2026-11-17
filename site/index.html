@@ -2,256 +2,165 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Driftwall - Live video wallpaper for macOS</title>
-    <meta
-      name="description"
-      content="Free, open-source live video wallpaper for macOS. Play any video behind your icons, light on battery."
-    />
-    <!-- link previews on reddit, hn, slack, x -->
+    <meta name="description" content="Free, open-source live video wallpaper for macOS. Play any .mp4 or .mov behind your desktop icons, on every display." />
+    <link rel="canonical" href="https://driftwall.kamaldhital.com/" />
+    <!-- link previews on reddit, hn, slack, x; crawlers need absolute urls -->
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Driftwall - Live video wallpaper for macOS" />
-    <meta
-      property="og:description"
-      content="Free, open-source live video wallpaper for macOS. Play any video behind your icons, light on battery."
-    />
-    <meta property="og:url" content="https://dhitalkamal.github.io/driftwall/" />
+    <meta property="og:description" content="Free, open-source live video wallpaper for macOS. Play any .mp4 or .mov behind your desktop icons, on every display." />
+    <meta property="og:url" content="https://driftwall.kamaldhital.com/" />
+    <meta property="og:image" content="https://driftwall.kamaldhital.com/icon.png" />
+    <meta property="og:image:width" content="512" />
+    <meta property="og:image:height" content="512" />
     <meta name="twitter:card" content="summary" />
-    <style>
-      :root {
-        --ink: #0d1730;
-        --teal: #0f6b8c;
-        --bg: #f6f8fb;
-        --card: #ffffff;
-        --muted: #5b6577;
-        --line: #e2e8f0;
-      }
-      * {
-        box-sizing: border-box;
-        margin: 0;
-        padding: 0;
-      }
-      body {
-        font:
-          16px/1.6 -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          Roboto,
-          sans-serif;
-        color: var(--ink);
-        background: var(--bg);
-      }
-      a {
-        color: var(--teal);
-        text-decoration: none;
-      }
-      .wrap {
-        max-width: 960px;
-        margin: 0 auto;
-        padding: 0 24px;
-      }
-      header {
-        padding: 28px 0;
-      }
-      .brand {
-        font-weight: 700;
-        font-size: 20px;
-        letter-spacing: -0.02em;
-      }
-      .hero {
-        text-align: center;
-        padding: 72px 0 56px;
-        background: linear-gradient(180deg, #0d1730 0%, #0f6b8c 100%);
-        color: #fff;
-        border-radius: 0 0 28px 28px;
-      }
-      .hero h1 {
-        font-size: 44px;
-        line-height: 1.1;
-        letter-spacing: -0.03em;
-        margin-bottom: 16px;
-      }
-      .hero p {
-        font-size: 19px;
-        opacity: 0.9;
-        max-width: 560px;
-        margin: 0 auto 28px;
-      }
-      .btn {
-        display: inline-block;
-        padding: 13px 26px;
-        border-radius: 12px;
-        font-weight: 600;
-        background: #fff;
-        color: var(--ink);
-      }
-      .btn.ghost {
-        background: transparent;
-        color: #fff;
-        border: 1px solid rgba(255, 255, 255, 0.5);
-        margin-left: 10px;
-      }
-      .features {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 18px;
-        padding: 56px 0;
-      }
-      .card {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 22px;
-      }
-      .card h3 {
-        font-size: 17px;
-        margin-bottom: 8px;
-      }
-      .card p {
-        color: var(--muted);
-        font-size: 15px;
-      }
-      .install {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        padding: 28px;
-        margin-bottom: 64px;
-      }
-      .install h2 {
-        font-size: 22px;
-        margin-bottom: 12px;
-      }
-      .install pre {
-        background: #0d1730;
-        color: #e6edf6;
-        border-radius: 12px;
-        padding: 16px 18px;
-        overflow-x: auto;
-        font-size: 14px;
-      }
-      footer {
-        color: var(--muted);
-        font-size: 14px;
-        text-align: center;
-        padding: 40px 0;
-        border-top: 1px solid var(--line);
-      }
-      @media (max-width: 640px) {
-        .hero h1 {
-          font-size: 34px;
-        }
-      }
-    </style>
+    <link rel="icon" type="image/png" href="icon.png" />
+    <link rel="apple-touch-icon" href="icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <header>
-      <div class="wrap"><span class="brand">Driftwall</span></div>
-    </header>
-
-    <section class="hero">
-      <div class="wrap">
-        <h1>Your desktop, in motion.</h1>
-        <p>
-          Free and open-source live video wallpaper for macOS. It sits behind
-          your icons, loops seamlessly across every display, and stays light on
-          battery.
-        </p>
-        <a
-          class="btn"
-          href="https://github.com/dhitalkamal/driftwall/releases/latest"
-          >Download</a
-        >
-        <a class="btn ghost" href="https://github.com/dhitalkamal/driftwall"
-          >View on GitHub</a
-        >
-      </div>
-    </section>
-
-    <div class="wrap">
-      <section class="features">
-        <div class="card">
-          <h3>Behind your icons</h3>
-          <p>
-            Renders at the desktop layer so you keep clicking, dragging, and
-            working as usual.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Every display</h3>
-          <p>
-            A single video everywhere, or a different one per screen, following
-            monitors as you plug and unplug them.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Playlists</h3>
-          <p>
-            Rotate through a set of videos on a schedule, with optional shuffle.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Battery aware</h3>
-          <p>
-            Pauses on a fullscreen app or on battery, so it does not drain your
-            Mac.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Your videos</h3>
-          <p>
-            Point it at any .mp4 or .mov. Nothing is uploaded; everything stays
-            on your Mac.
-          </p>
-        </div>
-        <div class="card">
-          <h3>Open source</h3>
-          <p>
-            MIT licensed. Read the code, file issues, and send pull requests on
-            GitHub.
-          </p>
-        </div>
-      </section>
-
-      <section class="install">
-        <h2>Install</h2>
-        <p style="color: var(--muted); margin-bottom: 14px">
-          macOS 13 or later. With Homebrew:
-        </p>
-        <pre>brew install --cask dhitalkamal/tap/driftwall</pre>
-        <p style="color: var(--muted); margin: 14px 0">
-          Or download Driftwall.dmg from the
-          <a href="https://github.com/dhitalkamal/driftwall/releases/latest"
-            >latest release</a
-          >
-          and drag it into Applications.
-        </p>
-        <p style="color: var(--muted); margin-bottom: 14px">
-          Driftwall is not notarized yet, so macOS blocks the first launch.
-          Right-click it in Applications and choose Open, or run once:
-        </p>
-        <pre>xattr -dr com.apple.quarantine /Applications/Driftwall.app</pre>
-        <p style="color: var(--muted); margin: 14px 0">
-          Or build it yourself with the Xcode command line tools:
-        </p>
-        <pre>
-git clone https://github.com/dhitalkamal/driftwall.git
-cd driftwall
-scripts/install.sh</pre>
-      </section>
+<nav class="nav">
+  <div class="wrap nav-in">
+    <a class="nav-name" href="#top"><img src="icon.png" width="22" height="22" alt="">Driftwall</a>
+    <div class="nav-links">
+      <a href="#displays">Displays</a>
+      <a href="#pauses">Pauses</a>
+      <a href="#playlists">Playlists</a>
+      <a href="#private">Private</a>
+      <a href="#faq">FAQ</a>
     </div>
+    <a class="pill pill-sm" href="https://github.com/dhitalkamal/driftwall/releases/latest/download/Driftwall.dmg">Download</a>
+  </div>
+</nav>
 
-    <footer>
-      <div class="wrap">
-        Driftwall for macOS 13+ &middot; MIT licensed &middot;
-        <a href="https://github.com/dhitalkamal/driftwall">GitHub</a> &middot;
-        <a
-          href="https://github.com/dhitalkamal/driftwall/blob/main/legal/PRIVACY.md"
-          >Privacy</a
-        >
-        &middot;
-        <a href="https://github.com/dhitalkamal/driftwall/issues">Support</a>
+<main id="top">
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-top">
+      <h1 class="in in1">Your desktop.<br>In <span class="grad">motion.</span></h1>
+      <div class="hero-side in in2">
+        <p class="sub">Live video wallpaper for your Mac. Free, open source, and it lives in your menu bar.</p>
+        <div class="cta">
+          <a class="pill" href="https://github.com/dhitalkamal/driftwall/releases/latest/download/Driftwall.dmg">Download for macOS</a>
+          <a class="link" href="#install">Install with Homebrew</a>
+        </div>
+        <p class="small">Requires macOS 13 or later.</p>
       </div>
-    </footer>
+    </div>
+    <figure class="wide-mon in in3">
+      <div class="mon-s"><canvas class="wave" aria-label="Animated wave wallpaper"></canvas></div>
+      <div class="stand"></div>
+      <figcaption>Placeholder animation. The demo recording goes here.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="band grey" id="displays">
+  <div class="wrap">
+    <div class="head2">
+      <h2>One video.<br>Every <span class="grad">display.</span></h2>
+      <p class="lead">Play the same video on all your screens, or a different one on each. Plug in a new monitor and Driftwall picks it up.</p>
+    </div>
+    <div class="screens" role="img" aria-label="Two displays side by side, each showing a wallpaper">
+      <div class="mon"><div class="mon-s"><canvas class="wave"></canvas></div><div class="stand"></div></div>
+      <div class="mon"><div class="mon-s"><canvas class="wave" data-shift="2.4"></canvas></div><div class="stand"></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="pauses">
+  <div class="wrap split">
+    <div class="copy-col">
+      <h2>Pauses when you can&rsquo;t see it.</h2>
+      <p class="lead">A fullscreen app in front, or windows covering the whole desktop, and the video stops until the desktop is visible again.</p>
+    </div>
+    <div class="pair">
+      <figure>
+        <div class="mon"><div class="mon-s"><canvas class="wave"></canvas><span class="cover"></span></div><div class="stand"></div></div>
+        <figcaption>Windows cover the desktop. Paused.</figcaption>
+      </figure>
+      <figure>
+        <div class="mon"><div class="mon-s"><canvas class="wave"></canvas></div><div class="stand"></div></div>
+        <figcaption>Desktop visible. Playing.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<section class="band grey" id="playlists">
+  <div class="wrap split flip">
+    <div class="copy-col">
+      <h2>Rotate through a <span class="grad">playlist.</span></h2>
+      <p class="lead">Line up several videos and switch on a timer, with optional shuffle.</p>
+    </div>
+    <div class="reel" role="img" aria-label="Three videos taking turns">
+      <span class="tile t1"></span><span class="tile t2"></span><span class="tile t3"></span>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="private">
+  <div class="wrap head2">
+    <h2 class="huge">No account.<br>No tracking.<br>Never online.</h2>
+    <p class="lead">Driftwall never connects to the internet. There is nothing to sign up for and nothing to send.</p>
+  </div>
+</section>
+
+<section class="band grey" id="more">
+  <div class="wrap">
+    <h2 class="mid">Everything else, briefly.</h2>
+    <div class="grid">
+      <div class="cell"><h3>Any video</h3><p>Pick an .mp4 or .mov, 4K included. It loops without a gap behind your icons.</p></div>
+      <div class="cell"><h3>Battery aware</h3><p>Pauses on battery, on by default, and resumes when you plug in.</p></div>
+      <div class="cell"><h3>Free and open</h3><p>MIT licensed, no paid tier. <a href="https://github.com/dhitalkamal/driftwall">Read the code on GitHub.</a></p></div>
+      <div class="cell"><h3>Menu bar app</h3><p>Runs quietly in the menu bar. Needs macOS 13 or later.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="install">
+  <div class="wrap split even">
+    <div>
+      <h2 class="mid">Prefer Homebrew?</h2>
+      <div class="code"><code>brew install --cask dhitalkamal/tap/driftwall</code><button class="copy" type="button">Copy</button></div>
+      <p class="fine gap">Or <a href="https://github.com/dhitalkamal/driftwall/releases/latest/download/Driftwall.dmg">download Driftwall.dmg</a> and drag it into Applications.</p>
+    </div>
+    <div id="faq">
+      <h2 class="mid">Good to know</h2>
+      <h3 class="q">Why does macOS warn me when I open it?</h3>
+      <p class="fine">Driftwall is not notarized yet, which needs a paid Apple developer account. Right-click Driftwall in Applications, choose Open, then Open again. Or run this once:</p>
+      <div class="code"><code>xattr -dr com.apple.quarantine /Applications/Driftwall.app</code><button class="copy" type="button">Copy</button></div>
+      <h3 class="q">Can it play on the Lock Screen?</h3>
+      <p class="fine">No. macOS only allows Lock Screen video through its own wallpaper system, which Driftwall doesn&rsquo;t use.</p>
+      <h3 class="q">What does it cost?</h3>
+      <p class="fine">Nothing. It is MIT licensed with no paid tier, and the code is on <a href="https://github.com/dhitalkamal/driftwall">GitHub</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band grey closing">
+  <div class="wrap closing-in">
+    <img class="icon" src="icon.png" width="112" height="112" alt="Driftwall app icon">
+    <h2 class="mid">Give your desktop some motion.</h2>
+    <a class="pill" href="https://github.com/dhitalkamal/driftwall/releases/latest/download/Driftwall.dmg">Download for macOS</a>
+  </div>
+</section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-in">
+    <span>Made by Kamal Dhital</span>
+    <span class="foot-links">
+      <a href="https://github.com/dhitalkamal/driftwall">GitHub</a>
+      <a href="https://github.com/dhitalkamal/driftwall/blob/main/legal/PRIVACY.md">Privacy policy</a>
+      <a href="https://github.com/dhitalkamal/driftwall/issues">Issues</a>
+    </span>
+  </div>
+</footer>
+<script src="app.js"></script>
   </body>
 </html>
