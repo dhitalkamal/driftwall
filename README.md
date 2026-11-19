@@ -3,7 +3,15 @@
 Live video wallpaper for macOS. Pick an `.mp4` or `.mov` and it plays, looping seamlessly,
 behind your desktop icons on every display, while you keep using your Mac normally.
 
-Free and open source under the [MIT license](LICENSE).
+Free and open source under the [MIT license](LICENSE). Website: https://driftwall.kamaldhital.com
+
+<p align="center">
+  <img src="docs/screenshots/settings-wallpaper.png" width="32%" alt="Driftwall settings, Wallpaper tab: screen preview, fit, dim, speed and volume">
+  <img src="docs/screenshots/settings-playlist.png" width="32%" alt="Driftwall settings, Playlist tab: rotation, shuffle and the video list">
+  <img src="docs/screenshots/settings-behavior.png" width="32%" alt="Driftwall settings, Behavior tab: pause on battery, fullscreen choice, Spaces and login">
+</p>
+
+The preview shows a [CC0 clip from Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Fresh_Powder_coats_the_forests_of_Gallagher%27s_Canyon,_British_Columbia.webm).
 
 ## Features
 
