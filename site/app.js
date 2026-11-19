@@ -61,6 +61,16 @@
   document.addEventListener("visibilitychange", () => slots.forEach(start));
   addEventListener("resize", () => slots.forEach(size));
 
+  // hero video: started from script (no autoplay attribute) so reduced motion keeps the poster,
+  // and paused while off screen or in a hidden tab, the way driftwall itself behaves
+  const hero = document.querySelector(".hero-video");
+  if (hero && !still) {
+    let onScreen = false;
+    const sync = () => (onScreen && !document.hidden ? hero.play().catch(() => {}) : hero.pause());
+    new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; sync(); }).observe(hero);
+    document.addEventListener("visibilitychange", sync);
+  }
+
   document.querySelectorAll(".copy").forEach((b) => b.addEventListener("click", async () => {
     const code = b.parentElement.querySelector("code");
     try {
